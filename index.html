@@ -94,13 +94,62 @@ const pctx      = proc.getContext('2d', { willReadFrequently: true });
 const wrap      = document.getElementById('cam-wrap');
 const statusBar = document.getElementById('status-bar');
 
+// Cache all DOM elements accessed per-frame
+const $lrVal   = document.getElementById('lr-val');
+const $tbVal   = document.getElementById('tb-val');
+const $lrRatio = document.getElementById('lr-ratio');
+const $tbRatio = document.getElementById('tb-ratio');
+const $lrBar   = document.getElementById('lr-bar');
+const $tbBar   = document.getElementById('tb-bar');
+const $grade   = document.getElementById('grade-val');
+const $gDesc   = document.getElementById('grade-desc');
+const $autoBtn = document.getElementById('auto-btn');
+const $lockBtn = document.getElementById('lock-btn');
+const $startMsg = document.getElementById('start-msg');
+
 let locked = false, lockedCard = null, smoothCard = null, lastDetect = 0;
 const SMOOTH = 0.15;
-const PW = 160, PH = 120; // small proc canvas for speed
+const PW = 160, PH = 120;
+const PIXELS = PW * PH;
+const THRESH = 55;
+const ROW_T = 0.25, COL_T = 0.25;
+
+// Grade lookup: [maxRatio, label, color, description]
+const GRADES = [
+  [1.22, '10', '#00ff88', 'PSA 10 territory \u{1F525}'],
+  [1.50, '9',  '#aaff00', 'Strong PSA 9'],
+  [1.86, '8',  '#ffcc00', 'Likely PSA 8'],
+  [2.33, '7',  '#ff8800', 'PSA 7 range'],
+  [Infinity, '6\u2193', '#ff2244', 'Off-center']
+];
 
 proc.width = PW; proc.height = PH;
 
-function lerp(a,b,t){ return a+(b-a)*t; }
+// Pre-allocate buffers reused every detection frame
+const gray = new Uint8Array(PIXELS);
+const rowBright = new Float32Array(PH);
+const colBright = new Float32Array(PW);
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function ratio(a, b) {
+  return Math.min(a, b) > 2 ? Math.max(a, b) / Math.min(a, b) : 99;
+}
+
+function pct(a, b) {
+  const t = a + b;
+  return t ? `${Math.round(a / t * 100)}/${Math.round(b / t * 100)}` : '\u2014';
+}
+
+// Returns {lB, rB, tB, bB, lrR, tbR, worst} for a card rect
+function computeMargins(card) {
+  const W = overlay.width, H = overlay.height;
+  const lB = card.x, rB = W - (card.x + card.w);
+  const tB = card.y, bB = H - (card.y + card.h);
+  const lrR = ratio(lB, rB);
+  const tbR = ratio(tB, bB);
+  return { lB, rB, tB, bB, lrR, tbR, worst: Math.max(lrR, tbR) };
+}
 
 // --- Camera start ---
 document.getElementById('start-btn').addEventListener('click', async () => {
@@ -109,29 +158,29 @@ document.getElementById('start-btn').addEventListener('click', async () => {
       video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } }
     });
     video.srcObject = stream;
-    document.getElementById('start-msg').style.display = 'none';
+    $startMsg.style.display = 'none';
     resizeCanvas();
     requestAnimationFrame(loop);
   } catch(e) {
-    document.getElementById('start-msg').innerHTML =
+    $startMsg.innerHTML =
       `<h2 style="color:var(--red)">Camera Error</h2>
        <p>${e.message}</p>
        <p style="margin-top:10px;color:#555;font-size:0.65rem">Open this page directly in Safari, not inside another app.</p>`;
   }
 });
 
-document.getElementById('auto-btn').addEventListener('click', () => {
+$autoBtn.addEventListener('click', () => {
   locked = false; lockedCard = null;
-  document.getElementById('auto-btn').classList.add('active');
-  document.getElementById('lock-btn').classList.remove('locked');
-  document.getElementById('lock-btn').textContent = '⬛ LOCK';
+  $autoBtn.classList.add('active');
+  $lockBtn.classList.remove('locked');
+  $lockBtn.textContent = '\u2B1B LOCK';
 });
 
-document.getElementById('lock-btn').addEventListener('click', () => {
+$lockBtn.addEventListener('click', () => {
   if (smoothCard) {
-    locked = true; lockedCard = {...smoothCard};
-    document.getElementById('lock-btn').classList.add('locked');
-    document.getElementById('lock-btn').textContent = '✓ LOCKED';
+    locked = true; lockedCard = { ...smoothCard };
+    $lockBtn.classList.add('locked');
+    $lockBtn.textContent = '\u2713 LOCKED';
   }
 });
 
@@ -146,56 +195,42 @@ resizeCanvas();
 let frameCount = 0;
 function loop() {
   requestAnimationFrame(loop);
-  frameCount++;
-  if (!locked && video.readyState === 4 && frameCount % 5 === 0) detectCard();
+  if (!locked && video.readyState === 4 && ++frameCount % 5 === 0) detectCard();
   const card = locked ? lockedCard : smoothCard;
   drawOverlay(card);
   if (card) updateStats(card);
 }
 
-// --- Pure JS card detection ---
-// Downscale frame, find brightest rectangular region vs dark background
+// --- Card detection (reuses pre-allocated buffers) ---
 function detectCard() {
   try { pctx.drawImage(video, 0, 0, PW, PH); }
   catch(e) { return; }
 
-  const imgData = pctx.getImageData(0, 0, PW, PH);
-  const data = imgData.data;
+  const data = pctx.getImageData(0, 0, PW, PH).data;
 
-  // Convert to grayscale + threshold to find bright areas (card is brighter than dark bg)
-  const gray = new Uint8Array(PW * PH);
-  for (let i = 0; i < PW * PH; i++) {
-    gray[i] = (data[i*4]*77 + data[i*4+1]*150 + data[i*4+2]*29) >> 8;
-  }
-
-  // Find bounding box of bright pixels using projection
-  // Threshold: anything above 60 brightness counts as "card"
-  const THRESH = 55;
-
-  // Horizontal projection: for each row, count bright pixels
-  // Vertical projection: for each col, count bright pixels
-  const rowBright = new Float32Array(PH);
-  const colBright = new Float32Array(PW);
+  // Grayscale conversion + row/col projection in a single pass
+  rowBright.fill(0);
+  colBright.fill(0);
 
   for (let y = 0; y < PH; y++) {
-    let cnt = 0;
+    const rowOff = y * PW;
+    let rowCnt = 0;
     for (let x = 0; x < PW; x++) {
-      if (gray[y * PW + x] > THRESH) cnt++;
+      const i = (rowOff + x) * 4;
+      const g = (data[i] * 77 + data[i + 1] * 150 + data[i + 2] * 29) >> 8;
+      if (g > THRESH) {
+        rowCnt++;
+        colBright[x]++;
+      }
     }
-    rowBright[y] = cnt / PW;
-  }
-  for (let x = 0; x < PW; x++) {
-    let cnt = 0;
-    for (let y = 0; y < PH; y++) {
-      if (gray[y * PW + x] > THRESH) cnt++;
-    }
-    colBright[x] = cnt / PH;
+    rowBright[y] = rowCnt / PW;
   }
 
-  // Find edges: where projection crosses threshold of 0.3 (30% of scanline is bright)
-  const ROW_T = 0.25, COL_T = 0.25;
+  // Normalize column counts
+  for (let x = 0; x < PW; x++) colBright[x] /= PH;
 
-  let top=-1, bot=-1, left=-1, right=-1;
+  // Find edges
+  let top = -1, bot = -1, left = -1, right = -1;
 
   for (let y = 0; y < PH; y++) {
     if (rowBright[y] > ROW_T) { if (top < 0) top = y; bot = y; }
@@ -204,38 +239,40 @@ function detectCard() {
     if (colBright[x] > COL_T) { if (left < 0) left = x; right = x; }
   }
 
-  if (top < 0 || bot < 0 || left < 0 || right < 0) {
+  if (top < 0 || left < 0) {
     if (Date.now() - lastDetect > 1200) {
       smoothCard = null;
-      statusBar.textContent = 'Searching — place card on dark surface';
+      statusBar.textContent = 'Searching \u2014 place card on dark surface';
     }
     return;
   }
 
   const cw = right - left;
   const ch = bot - top;
-  if (cw < PW * 0.1 || ch < PH * 0.1) return; // too small
+  if (cw < PW * 0.1 || ch < PH * 0.1) return;
 
-  // Check aspect ratio is roughly card-shaped (0.5 to 0.95)
   const ar = cw / ch;
   if (ar < 0.45 || ar > 1.1) return;
 
-  // Scale up to overlay size
-  const sx = overlay.width  / PW;
+  const sx = overlay.width / PW;
   const sy = overlay.height / PH;
-
-  const n = { x: left*sx, y: top*sy, w: cw*sx, h: ch*sy };
+  const nx = left * sx, ny = top * sy, nw = cw * sx, nh = ch * sy;
 
   if (!smoothCard) {
-    smoothCard = {...n};
+    smoothCard = { x: nx, y: ny, w: nw, h: nh };
   } else {
-    smoothCard.x = lerp(smoothCard.x, n.x, SMOOTH);
-    smoothCard.y = lerp(smoothCard.y, n.y, SMOOTH);
-    smoothCard.w = lerp(smoothCard.w, n.w, SMOOTH);
-    smoothCard.h = lerp(smoothCard.h, n.h, SMOOTH);
+    smoothCard.x = lerp(smoothCard.x, nx, SMOOTH);
+    smoothCard.y = lerp(smoothCard.y, ny, SMOOTH);
+    smoothCard.w = lerp(smoothCard.w, nw, SMOOTH);
+    smoothCard.h = lerp(smoothCard.h, nh, SMOOTH);
   }
   lastDetect = Date.now();
-  statusBar.textContent = `Card detected · AR ${ar.toFixed(2)}`;
+  statusBar.textContent = `Card detected \u00b7 AR ${ar.toFixed(2)}`;
+}
+
+// --- Draws a line from (x1,y1) to (x2,y2) on the current path ---
+function line(x1, y1, x2, y2) {
+  ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
 }
 
 // --- Draw overlay ---
@@ -244,103 +281,98 @@ function drawOverlay(card) {
   ctx.clearRect(0, 0, W, H);
 
   if (!card) {
-    // Scanning animation
-    const scanY = ((Date.now()/1500) % 1) * H;
+    const scanY = ((Date.now() / 1500) % 1) * H;
     ctx.strokeStyle = 'rgba(255,204,0,0.1)';
     ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(0, scanY); ctx.lineTo(W, scanY); ctx.stroke();
-    // Guide box
+    ctx.beginPath(); line(0, scanY, W, scanY); ctx.stroke();
     ctx.strokeStyle = 'rgba(255,204,0,0.18)';
-    ctx.setLineDash([6,6]); ctx.lineWidth = 1.5;
-    ctx.strokeRect(W*0.08, H*0.04, W*0.84, H*0.88);
+    ctx.setLineDash([6, 6]); ctx.lineWidth = 1.5;
+    ctx.strokeRect(W * 0.08, H * 0.04, W * 0.84, H * 0.88);
     ctx.setLineDash([]);
     ctx.fillStyle = 'rgba(255,204,0,0.5)';
     ctx.font = '11px "Share Tech Mono"'; ctx.textAlign = 'center';
-    ctx.fillText('Position card in frame', W/2, H/2);
+    ctx.fillText('Position card in frame', W / 2, H / 2);
     return;
   }
 
-  const {x, y, w: cw, h: ch} = card;
+  const { x, y, w: cw, h: ch } = card;
+  const xr = x + cw, yb = y + ch;
 
-  // Dim outside
+  // Dim outside card
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fillRect(0, 0, W, y);
-  ctx.fillRect(0, y+ch, W, H-(y+ch));
+  ctx.fillRect(0, yb, W, H - yb);
   ctx.fillRect(0, y, x, ch);
-  ctx.fillRect(x+cw, y, W-(x+cw), ch);
+  ctx.fillRect(xr, y, W - xr, ch);
 
   // Grade colour
-  const worst = getWorstRatio(card);
-  const bc = worst<=1.22?'#00ff88':worst<=1.5?'#aaff00':worst<=1.86?'#ffcc00':'#ff6600';
+  const { worst } = computeMargins(card);
+  const bc = worst <= 1.22 ? '#00ff88' : worst <= 1.5 ? '#aaff00' : worst <= 1.86 ? '#ffcc00' : '#ff6600';
 
   // Glow border
   ctx.strokeStyle = bc; ctx.lineWidth = 2.5;
   ctx.shadowColor = bc; ctx.shadowBlur = 12;
   ctx.strokeRect(x, y, cw, ch); ctx.shadowBlur = 0;
 
-  // Corner brackets
+  // Corner brackets (single batched path)
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
-  [[x,y,1,1],[x+cw,y,-1,1],[x,y+ch,1,-1],[x+cw,y+ch,-1,-1]].forEach(([px,py,dx,dy]) => {
-    ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+dx*22,py); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px,py+dy*22); ctx.stroke();
-  });
+  ctx.beginPath();
+  line(x, y, x + 22, y); line(x, y, x, y + 22);
+  line(xr, y, xr - 22, y); line(xr, y, xr, y + 22);
+  line(x, yb, x + 22, yb); line(x, yb, x, yb - 22);
+  line(xr, yb, xr - 22, yb); line(xr, yb, xr, yb - 22);
+  ctx.stroke();
 
-  // Crosshair
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.setLineDash([4,5]); ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(x+cw/2,y); ctx.lineTo(x+cw/2,y+ch); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x,y+ch/2); ctx.lineTo(x+cw,y+ch/2); ctx.stroke();
+  // Crosshair (single batched path)
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.setLineDash([4, 5]); ctx.lineWidth = 1;
+  ctx.beginPath();
+  line(x + cw / 2, y, x + cw / 2, yb);
+  line(x, y + ch / 2, xr, y + ch / 2);
+  ctx.stroke();
   ctx.setLineDash([]);
 
-  // Edge lines cyan/orange
-  ctx.strokeStyle='#00cfff'; ctx.lineWidth=1.5; ctx.shadowColor='#00cfff'; ctx.shadowBlur=5;
-  ctx.beginPath(); ctx.moveTo(0,y);    ctx.lineTo(W,y);    ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0,y+ch); ctx.lineTo(W,y+ch); ctx.stroke();
-  ctx.strokeStyle='#ff6600'; ctx.shadowColor='#ff6600';
-  ctx.beginPath(); ctx.moveTo(x,0);    ctx.lineTo(x,H);    ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x+cw,0); ctx.lineTo(x+cw,H); ctx.stroke();
+  // Edge lines - cyan horizontal (single path)
+  ctx.strokeStyle = '#00cfff'; ctx.lineWidth = 1.5; ctx.shadowColor = '#00cfff'; ctx.shadowBlur = 5;
+  ctx.beginPath();
+  line(0, y, W, y);
+  line(0, yb, W, yb);
+  ctx.stroke();
+
+  // Edge lines - orange vertical (single path)
+  ctx.strokeStyle = '#ff6600'; ctx.shadowColor = '#ff6600';
+  ctx.beginPath();
+  line(x, 0, x, H);
+  line(xr, 0, xr, H);
+  ctx.stroke();
   ctx.shadowBlur = 0;
 
-  // Frame center reference
-  ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.setLineDash([3,8]); ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+  // Frame center reference (single path)
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.setLineDash([3, 8]); ctx.lineWidth = 1;
+  ctx.beginPath();
+  line(W / 2, 0, W / 2, H);
+  line(0, H / 2, W, H / 2);
+  ctx.stroke();
   ctx.setLineDash([]);
-}
-
-function getWorstRatio(card) {
-  const {x,y,w:cw,h:ch}=card, W=overlay.width, H=overlay.height;
-  const lB=x, rB=W-(x+cw), tB=y, bB=H-(y+ch);
-  const lr = Math.min(lB,rB)>2 ? Math.max(lB,rB)/Math.min(lB,rB) : 99;
-  const tb = Math.min(tB,bB)>2 ? Math.max(tB,bB)/Math.min(tB,bB) : 99;
-  return Math.max(lr,tb);
 }
 
 function updateStats(card) {
-  const {x,y,w:cw,h:ch}=card, W=overlay.width, H=overlay.height;
-  const lB=x, rB=W-(x+cw), tB=y, bB=H-(y+ch);
-  const lrR=Math.min(lB,rB)>2?Math.max(lB,rB)/Math.min(lB,rB):99;
-  const tbR=Math.min(tB,bB)>2?Math.max(tB,bB)/Math.min(tB,bB):99;
+  const { lB, rB, tB, bB, lrR, tbR, worst } = computeMargins(card);
 
-  function pct(a,b){ const t=a+b; return t?`${Math.round(a/t*100)}/${Math.round(b/t*100)}`:'—'; }
+  $lrVal.textContent   = pct(lB, rB);
+  $tbVal.textContent   = pct(tB, bB);
+  $lrRatio.textContent = lrR.toFixed(2) + ':1';
+  $tbRatio.textContent = tbR.toFixed(2) + ':1';
+  $lrBar.style.width   = ((card.x + card.w / 2) / overlay.width * 100) + '%';
+  $tbBar.style.width   = ((card.y + card.h / 2) / overlay.height * 100) + '%';
 
-  document.getElementById('lr-val').textContent   = pct(lB,rB);
-  document.getElementById('tb-val').textContent   = pct(tB,bB);
-  document.getElementById('lr-ratio').textContent = lrR.toFixed(2)+':1';
-  document.getElementById('tb-ratio').textContent = tbR.toFixed(2)+':1';
-  document.getElementById('lr-bar').style.width   = ((x+cw/2)/W*100)+'%';
-  document.getElementById('tb-bar').style.width   = ((y+ch/2)/H*100)+'%';
-
-  const worst = Math.max(lrR,tbR);
-  let grade,color,desc;
-  if      (worst<=1.22){grade='10';color='#00ff88';desc='PSA 10 territory 🔥';}
-  else if (worst<=1.50){grade='9'; color='#aaff00';desc='Strong PSA 9';}
-  else if (worst<=1.86){grade='8'; color='#ffcc00';desc='Likely PSA 8';}
-  else if (worst<=2.33){grade='7'; color='#ff8800';desc='PSA 7 range';}
-  else                 {grade='6↓';color='#ff2244';desc='Off-center';}
-
-  const g=document.getElementById('grade-val');
-  g.textContent=grade; g.style.color=color;
-  document.getElementById('grade-desc').textContent=desc;
+  for (const [threshold, label, color, desc] of GRADES) {
+    if (worst <= threshold) {
+      $grade.textContent = label;
+      $grade.style.color = color;
+      $gDesc.textContent = desc;
+      break;
+    }
+  }
 }
 </script></body>
 </html>
