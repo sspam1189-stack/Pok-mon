@@ -4,10 +4,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Centering Cam</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--yellow:#ffcc00;--green:#00ff88;--red:#ff2244;--orange:#ff6600;--cyan:#00cfff;--bg:#0a0a0a;--panel:#111;--border:#222;--grade-color:#555;--grade-glow:rgba(85,85,85,0.3)}
-body{background:#000;color:#fff;font-family:'Share Tech Mono',monospace;height:100dvh;width:100dvw;overflow:hidden;position:relative;-webkit-tap-highlight-color:transparent}
+:root{--yellow:#fbbf24;--green:#34d399;--red:#f87171;--orange:#fb923c;--cyan:#38bdf8;--bg:#0a0a0a;--panel:#111;--border:#222;--grade-color:#555;--grade-glow:rgba(85,85,85,0.3)}
+body{background:#000;color:#fff;font-family:'Inter',sans-serif;height:100dvh;width:100dvw;overflow:hidden;position:relative;-webkit-tap-highlight-color:transparent}
 
 /* --- HEADER (hidden - full screen camera) --- */
 header{display:none}
@@ -22,16 +22,16 @@ canvas#proc{display:none}
 #controls{position:absolute;top:50%;right:14px;transform:translateY(-50%);z-index:10;display:flex;flex-direction:column;gap:10px}
 .ctrl-btn{width:44px;height:44px;border-radius:50%;background:rgba(20,20,24,0.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08);color:#ccc;font-size:1.1rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .3s ease;-webkit-tap-highlight-color:transparent;outline:none;padding:0}
 .ctrl-btn:active{transform:scale(0.9)}
-.ctrl-btn.active{border-color:var(--green);color:var(--green);box-shadow:0 0 12px rgba(0,255,136,0.2)}
+.ctrl-btn.active{border-color:var(--green);color:var(--green);box-shadow:0 0 12px rgba(52,211,153,0.2)}
 #lock-btn{border-color:var(--yellow);color:var(--yellow)}
-#lock-btn.locked{border-color:var(--green);color:var(--green);box-shadow:0 0 12px rgba(0,255,136,0.2)}
-#torch-btn.on{border-color:var(--yellow);color:var(--yellow);box-shadow:0 0 12px rgba(255,204,0,0.2)}
+#lock-btn.locked{border-color:var(--green);color:var(--green);box-shadow:0 0 12px rgba(52,211,153,0.2)}
+#torch-btn.on{border-color:var(--yellow);color:var(--yellow);box-shadow:0 0 12px rgba(251,191,36,0.2)}
 
 /* --- START MESSAGE --- */
 #start-msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.92);z-index:20;gap:14px;text-align:center;padding:24px}
-#start-msg h2{font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:900;color:var(--yellow)}
+#start-msg h2{font-family:'Inter',sans-serif;font-size:1.8rem;font-weight:900;color:var(--yellow)}
 #start-msg p{font-size:.75rem;color:#888;max-width:280px;line-height:1.7}
-#start-btn{background:var(--yellow);color:#000;border:none;padding:14px 32px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:.1em;text-transform:uppercase;border-radius:24px;cursor:pointer;margin-top:4px}
+#start-btn{background:var(--yellow);color:#000;border:none;padding:14px 32px;font-family:'Inter',sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:.1em;text-transform:uppercase;border-radius:24px;cursor:pointer;margin-top:4px}
 #tip{font-size:.65rem;color:#444;margin-top:-4px}
 
 /* --- STATUS BAR (moved up to avoid drawer overlap) --- */
@@ -63,17 +63,17 @@ canvas#proc{display:none}
   position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
 }
 .grade-center .grade-num{
-  font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.6rem;line-height:1;
+  font-family:'Inter',sans-serif;font-weight:900;font-size:1.6rem;line-height:1;
   color:var(--grade-color);transition:color .3s ease;
 }
 .grade-center .grade-psa{
-  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.5rem;
+  font-family:'Inter',sans-serif;font-weight:700;font-size:.5rem;
   letter-spacing:.15em;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:1px;
 }
 
 /* HUD info column beside the ring */
 .hud-info{display:flex;flex-direction:column;gap:3px;min-width:0}
-.hud-desc{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.75rem;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hud-desc{font-family:'Inter',sans-serif;font-weight:700;font-size:.75rem;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hud-stability{font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;transition:color .3s ease}
 .hud-mode{font-size:.5rem;letter-spacing:.1em;color:#555;text-transform:uppercase}
 
@@ -97,11 +97,11 @@ canvas#proc{display:none}
 .ratio-arc-left{fill:none;stroke-width:5;stroke-linecap:round}
 .ratio-arc-right{fill:none;stroke-width:5;stroke-linecap:round;opacity:.35}
 .ratio-center-text{
-  font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:.7rem;
+  font-family:'Inter',sans-serif;font-weight:900;font-size:.7rem;
   fill:#fff;text-anchor:middle;dominant-baseline:central;
 }
-.ratio-label{font-size:.45rem;color:#555;letter-spacing:.12em;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif}
-.ratio-pct{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.6rem;color:#888}
+.ratio-label{font-size:.45rem;color:#555;letter-spacing:.12em;text-transform:uppercase;font-family:'Inter',sans-serif}
+.ratio-pct{font-family:'Inter',sans-serif;font-weight:700;font-size:.6rem;color:#888}
 
 /* ============================================================
    SWIPE-UP DETAILS DRAWER
@@ -129,14 +129,14 @@ canvas#proc{display:none}
 .drawer-peek{
   display:flex;align-items:center;justify-content:center;gap:12px;
   padding:0 16px 10px;font-size:.6rem;color:#666;letter-spacing:.1em;text-transform:uppercase;
-  font-family:'Barlow Condensed',sans-serif;cursor:pointer;
+  font-family:'Inter',sans-serif;cursor:pointer;
 }
 .drawer-peek-grade{font-weight:900;font-size:.8rem;transition:color .3s ease}
 
 /* Drawer content */
 .drawer-content{padding:4px 16px 16px;overflow-y:auto;max-height:calc(70vh - 44px)}
 .drawer-section{margin-bottom:14px}
-.drawer-section-title{font-size:.55rem;color:#444;letter-spacing:.18em;text-transform:uppercase;margin-bottom:8px;font-family:'Barlow Condensed',sans-serif}
+.drawer-section-title{font-size:.55rem;color:#444;letter-spacing:.18em;text-transform:uppercase;margin-bottom:8px;font-family:'Inter',sans-serif}
 
 /* Detail stat rows */
 .detail-stat{
@@ -146,9 +146,9 @@ canvas#proc{display:none}
 }
 .detail-stat-left{display:flex;flex-direction:column;gap:2px}
 .detail-stat-label{font-size:.55rem;color:#555;letter-spacing:.12em;text-transform:uppercase}
-.detail-stat-value{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.3rem}
+.detail-stat-value{font-family:'Inter',sans-serif;font-weight:900;font-size:1.3rem}
 .detail-stat-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
-.detail-stat-ratio{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.9rem;color:#888}
+.detail-stat-ratio{font-family:'Inter',sans-serif;font-weight:700;font-size:.9rem;color:#888}
 .detail-stat-pct{font-size:.6rem;color:#555}
 
 /* Split bar in drawer — shows L vs R or T vs B distribution */
@@ -169,10 +169,10 @@ canvas#proc{display:none}
 .grade-detail-center{
   position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
 }
-.grade-detail-center .grade-num{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.8rem;line-height:1;color:var(--grade-color);transition:color .3s}
-.grade-detail-center .grade-psa{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.5rem;letter-spacing:.15em;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:1px}
+.grade-detail-center .grade-num{font-family:'Inter',sans-serif;font-weight:900;font-size:1.8rem;line-height:1;color:var(--grade-color);transition:color .3s}
+.grade-detail-center .grade-psa{font-family:'Inter',sans-serif;font-weight:700;font-size:.5rem;letter-spacing:.15em;color:rgba(255,255,255,.4);text-transform:uppercase;margin-top:1px}
 .grade-detail-info{display:flex;flex-direction:column;gap:4px}
-.grade-detail-desc{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1rem;color:#ccc}
+.grade-detail-desc{font-family:'Inter',sans-serif;font-weight:700;font-size:1rem;color:#ccc}
 .grade-detail-worst{font-size:.6rem;color:#555}
 .grade-detail-stability{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase}
 .grade-detail-mode{font-size:.55rem;letter-spacing:.1em;color:#444;text-transform:uppercase;margin-top:2px}
@@ -180,12 +180,12 @@ canvas#proc{display:none}
 /* History section in drawer */
 #history-panel{margin-top:8px}
 .hist-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.hist-header span{font-size:.55rem;color:#444;letter-spacing:.18em;text-transform:uppercase;font-family:'Barlow Condensed',sans-serif}
-.hist-clear{font-size:.55rem;color:#555;background:none;border:1px solid #333;padding:2px 6px;border-radius:2px;cursor:pointer;font-family:'Share Tech Mono',monospace}
+.hist-header span{font-size:.55rem;color:#444;letter-spacing:.18em;text-transform:uppercase;font-family:'Inter',sans-serif}
+.hist-clear{font-size:.55rem;color:#555;background:none;border:1px solid #333;padding:2px 6px;border-radius:2px;cursor:pointer;font-family:'Inter',sans-serif}
 .hist-entry{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-size:.65rem;background:rgba(255,255,255,.02);border-radius:6px;margin-bottom:3px}
 .hist-entry:last-child{border-bottom:none}
 .hist-time{color:#555}
-.hist-grade{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:.9rem}
+.hist-grade{font-family:'Inter',sans-serif;font-weight:900;font-size:.9rem}
 .hist-ratios{color:#888}
 .hist-empty{padding:16px;text-align:center;color:#333;font-size:.65rem}
 
@@ -200,8 +200,8 @@ canvas#proc{display:none}
 /* Lock button pulse */
 @keyframes lockPulse{
   0%{transform:scale(1);box-shadow:none}
-  30%{transform:scale(1.12);box-shadow:0 0 14px rgba(0,255,136,.35)}
-  100%{transform:scale(1);box-shadow:0 0 0 rgba(0,255,136,0)}
+  30%{transform:scale(1.12);box-shadow:0 0 14px rgba(52,211,153,.35)}
+  100%{transform:scale(1);box-shadow:0 0 0 rgba(52,211,153,0)}
 }
 #lock-btn.locked{animation:lockPulse .5s cubic-bezier(.34,1.56,.64,1)}
 
@@ -261,9 +261,9 @@ canvas#overlay.fade-in{animation:overlayFadeIn .35s ease both}
 
 /* Celebratory sparkle on grade improvement */
 @keyframes sparkle{
-  0%{box-shadow:0 0 0 0 rgba(0,255,136,.4)}
-  50%{box-shadow:0 0 30px 8px rgba(0,255,136,.15)}
-  100%{box-shadow:0 0 0 0 rgba(0,255,136,0)}
+  0%{box-shadow:0 0 0 0 rgba(52,211,153,.4)}
+  50%{box-shadow:0 0 30px 8px rgba(52,211,153,.15)}
+  100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}
 }
 .grade-detail-card.sparkle{animation:sparkle .6s ease}
 
@@ -910,7 +910,7 @@ const STABILITY_SIZE = 12;
 const stabilityBuf = [];
 let stabilityState = 'MOVING';
 const STABILITY_PERCENT = { MOVING: 0.25, ADJUSTING: 0.5, SETTLING: 0.75, STABLE: 1.0 };
-const STABILITY_COLORS = { MOVING: '#ff2244', ADJUSTING: '#ff8800', SETTLING: '#ffcc00', STABLE: '#00ff88' };
+const STABILITY_COLORS = { MOVING: '#f87171', ADJUSTING: '#fb923c', SETTLING: '#fbbf24', STABLE: '#34d399' };
 
 let history = JSON.parse(localStorage.getItem('cc_history') || '[]');
 
@@ -1200,23 +1200,23 @@ function doSnapshot() {
   const res = locked ? lockedResult : lastResult;
   const card = locked ? lockedCard : smoothCard;
   if (card && res) {
-    sctx.font = '700 13px "Barlow Condensed",sans-serif';
+    sctx.font = '700 13px "Inter",sans-serif';
     if (res.borders) {
-      sctx.fillStyle = '#ff6600';
+      sctx.fillStyle = '#fb923c';
       sctx.fillText('L:' + res.borders.left + 'px  R:' + res.borders.right + 'px', 12, ch + 20);
-      sctx.fillStyle = '#00cfff';
+      sctx.fillStyle = '#38bdf8';
       sctx.fillText('T:' + res.borders.top + 'px  B:' + res.borders.bottom + 'px', 12, ch + 38);
     }
     const gradeNum = document.getElementById('hud-grade-num').textContent;
     const gc = getComputedStyle(document.documentElement).getPropertyValue('--grade-color').trim() || '#fff';
     sctx.fillStyle = gc;
-    sctx.font = '900 24px "Barlow Condensed",sans-serif'; sctx.textAlign = 'right';
+    sctx.font = '900 24px "Inter",sans-serif'; sctx.textAlign = 'right';
     sctx.fillText('PSA ' + gradeNum, cw - 12, ch + 32); sctx.textAlign = 'left';
-    sctx.fillStyle = '#555'; sctx.font = '10px "Share Tech Mono",monospace';
+    sctx.fillStyle = '#555'; sctx.font = '10px "Inter",sans-serif';
     sctx.fillText(res.borderMode ? 'BORDER MODE' : 'FRAME MODE', cw / 2 - 30, ch + 20);
     sctx.fillText(stabilityState, cw / 2 - 20, ch + 36);
   }
-  sctx.fillStyle = '#333'; sctx.font = '9px "Share Tech Mono",monospace'; sctx.textAlign = 'center';
+  sctx.fillStyle = '#333'; sctx.font = '9px "Inter",sans-serif'; sctx.textAlign = 'center';
   sctx.fillText('Centering Cam', cw / 2, ch + barH - 4);
 
   const link = document.createElement('a');
@@ -1273,11 +1273,11 @@ function renderHistory() {
 }
 
 function gradeColor(g) {
-  if (g === '10') return '#00ff88';
-  if (g === '9') return '#aaff00';
-  if (g === '8') return '#ffcc00';
-  if (g === '7') return '#ff8800';
-  return '#ff2244';
+  if (g === '10') return '#34d399';
+  if (g === '9') return '#a3e635';
+  if (g === '8') return '#fbbf24';
+  if (g === '7') return '#fb923c';
+  return '#f87171';
 }
 renderHistory();
 
@@ -1356,7 +1356,7 @@ worker.onmessage = function(e) {
 
   if (d.borderMode) {
     modeBadge.textContent = 'BORDER';
-    modeBadge.style.background = '#00ff8833'; modeBadge.style.color = '#00ff88';
+    modeBadge.style.background = 'rgba(52,211,153,0.2)'; modeBadge.style.color = '#34d399';
     document.getElementById('hud-mode-label').textContent = 'BORDER MODE';
     document.getElementById('drawer-mode').textContent = 'BORDER MODE';
     document.getElementById('lr-section-title').innerHTML = '\u25C0 L Border / R Border \u25B6';
@@ -1406,7 +1406,7 @@ function updateStability() {
 
 function updateStabilityRing() {
   const pct = STABILITY_PERCENT[stabilityState] || 0.25;
-  const color = STABILITY_COLORS[stabilityState] || '#ff2244';
+  const color = STABILITY_COLORS[stabilityState] || '#f87171';
   // HUD ring (circumference = 2*PI*28 = 175.93)
   const ringHud = document.getElementById('stability-ring');
   if (ringHud) { ringHud.style.strokeDashoffset = (175.93 * (1 - pct)).toFixed(2); ringHud.style.stroke = color; }
@@ -1442,12 +1442,12 @@ function drawOverlay(card, res) {
     // Searching: subtle scan line + rounded card guide
     const t = (Date.now() / 2000) % 1;
     const scanY = t * H;
-    ctx.strokeStyle = 'rgba(255,204,0,0.08)'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(251,191,36,0.08)'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(0, scanY); ctx.lineTo(W, scanY); ctx.stroke();
     const gx = W * 0.12, gy = H * 0.08, gw = W * 0.76, gh = H * 0.84;
-    ctx.strokeStyle = 'rgba(255,204,0,0.12)'; ctx.setLineDash([8, 8]); ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(251,191,36,0.12)'; ctx.setLineDash([8, 8]); ctx.lineWidth = 1.5;
     roundRect(ctx, gx, gy, gw, gh, 12); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(255,204,0,0.35)'; ctx.font = '11px "Share Tech Mono"';
+    ctx.fillStyle = 'rgba(251,191,36,0.35)'; ctx.font = '11px "Inter"';
     ctx.textAlign = 'center'; ctx.fillText('Position card in frame', W / 2, H / 2);
     return;
   }
@@ -1455,15 +1455,27 @@ function drawOverlay(card, res) {
   const alpha = overlayAlpha;
   const { x, y, w: cw, h: ch } = card;
 
-  // Dim outside card
+  // Dim outside card (with rounded cutout)
+  const dimR = Math.min(cw, ch) * 0.035;
   ctx.globalAlpha = alpha * 0.4; ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, W, y); ctx.fillRect(0, y + ch, W, H - (y + ch));
-  ctx.fillRect(0, y, x, ch); ctx.fillRect(x + cw, y, W - (x + cw), ch);
+  ctx.beginPath();
+  ctx.rect(0, 0, W, H);
+  // Cut out rounded card shape (counter-clockwise winding)
+  ctx.moveTo(x + dimR, y);
+  ctx.arcTo(x, y, x, y + dimR, dimR);
+  ctx.lineTo(x, y + ch - dimR);
+  ctx.arcTo(x, y + ch, x + dimR, y + ch, dimR);
+  ctx.lineTo(x + cw - dimR, y + ch);
+  ctx.arcTo(x + cw, y + ch, x + cw, y + ch - dimR, dimR);
+  ctx.lineTo(x + cw, y + dimR);
+  ctx.arcTo(x + cw, y, x + cw - dimR, y, dimR);
+  ctx.closePath();
+  ctx.fill('evenodd');
   ctx.globalAlpha = alpha;
 
   // Grade color
   const worst = res && res.borderMode ? getBorderWorst(res.borders) : getFrameWorst(card);
-  const bc = worst <= 1.22 ? '#00ff88' : worst <= 1.5 ? '#aaff00' : worst <= 1.86 ? '#ffcc00' : worst <= 2.33 ? '#ff8800' : '#ff2244';
+  const bc = worst <= 1.22 ? '#34d399' : worst <= 1.5 ? '#a3e635' : worst <= 1.86 ? '#fbbf24' : worst <= 2.33 ? '#fb923c' : '#f87171';
 
   // Card outline with rounded corners (matches real card radius)
   const cardR = Math.min(cw, ch) * 0.035;
@@ -1491,7 +1503,7 @@ function drawOverlay(card, res) {
   if (res && res.borderMode && res.borders) {
     const b = res.borders;
     const scaleX = cw / 100, scaleY = ch / 140;
-    ctx.strokeStyle = 'rgba(0,255,136,0.3)'; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
+    ctx.strokeStyle = 'rgba(52,211,153,0.3)'; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
     const liX = x + b.left * scaleX;
     ctx.beginPath(); ctx.moveTo(liX, y + 8); ctx.lineTo(liX, y + ch - 8); ctx.stroke();
     const riX = x + cw - b.right * scaleX;
@@ -1512,30 +1524,30 @@ function drawOverlay(card, res) {
   // Tiny tick marks at card edges (replaces full-screen extension lines)
   ctx.lineWidth = 1; ctx.globalAlpha = alpha * 0.5;
   const tickLen = 12;
-  ctx.strokeStyle = '#ff6600';
+  ctx.strokeStyle = '#fb923c';
   ctx.beginPath(); ctx.moveTo(x, y + ch / 2); ctx.lineTo(x - tickLen, y + ch / 2); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(x + cw, y + ch / 2); ctx.lineTo(x + cw + tickLen, y + ch / 2); ctx.stroke();
-  ctx.strokeStyle = '#00cfff';
+  ctx.strokeStyle = '#38bdf8';
   ctx.beginPath(); ctx.moveTo(x + cw / 2, y); ctx.lineTo(x + cw / 2, y - tickLen); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(x + cw / 2, y + ch); ctx.lineTo(x + cw / 2, y + ch + tickLen); ctx.stroke();
   ctx.globalAlpha = alpha;
 
   // Border pixel labels (compact pill)
-  ctx.font = '700 10px "Barlow Condensed",sans-serif';
+  ctx.font = '700 10px "Inter",sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   if (res && res.borderMode && res.borders) {
     const b = res.borders;
     const lo = Math.min(28, x / 2);
-    drawLabel(ctx, '' + b.left, x - lo, y + ch / 2, '#ff6600', alpha);
-    drawLabel(ctx, '' + b.right, x + cw + lo, y + ch / 2, '#ff6600', alpha);
-    drawLabel(ctx, '' + b.top, x + cw / 2, Math.max(12, y - 14), '#00cfff', alpha);
-    drawLabel(ctx, '' + b.bottom, x + cw / 2, Math.min(H - 12, y + ch + 14), '#00cfff', alpha);
+    drawLabel(ctx, '' + b.left, x - lo, y + ch / 2, '#fb923c', alpha);
+    drawLabel(ctx, '' + b.right, x + cw + lo, y + ch / 2, '#fb923c', alpha);
+    drawLabel(ctx, '' + b.top, x + cw / 2, Math.max(12, y - 14), '#38bdf8', alpha);
+    drawLabel(ctx, '' + b.bottom, x + cw / 2, Math.min(H - 12, y + ch + 14), '#38bdf8', alpha);
   } else {
     const lB = Math.round(x), rB = Math.round(W - (x + cw)), tB = Math.round(y), bB = Math.round(H - (y + ch));
-    if (lB > 20) drawLabel(ctx, '' + lB, x / 2, y + ch / 2, '#ff6600', alpha);
-    if (rB > 20) drawLabel(ctx, '' + rB, x + cw + (W - x - cw) / 2, y + ch / 2, '#ff6600', alpha);
-    if (tB > 16) drawLabel(ctx, '' + tB, x + cw / 2, y / 2, '#00cfff', alpha);
-    if (bB > 16) drawLabel(ctx, '' + bB, x + cw / 2, y + ch + (H - y - ch) / 2, '#00cfff', alpha);
+    if (lB > 20) drawLabel(ctx, '' + lB, x / 2, y + ch / 2, '#fb923c', alpha);
+    if (rB > 20) drawLabel(ctx, '' + rB, x + cw + (W - x - cw) / 2, y + ch / 2, '#fb923c', alpha);
+    if (tB > 16) drawLabel(ctx, '' + tB, x + cw / 2, y / 2, '#38bdf8', alpha);
+    if (bB > 16) drawLabel(ctx, '' + bB, x + cw / 2, y + ch + (H - y - ch) / 2, '#38bdf8', alpha);
   }
   ctx.textBaseline = 'alphabetic';
 
@@ -1575,28 +1587,29 @@ function drawGuidedChevrons(card, res, W, H, alpha) {
 
   const thresh = res && res.borderMode ? 3 : 20;
   const cx = card.x + card.w / 2, cy = card.y + card.h / 2;
-  const breathe = 0.4 + Math.sin(Date.now() / 600) * 0.25;
+  const breathe = 0.4 + Math.sin(Date.now() / 600) * 0.3;
   ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
   function chevron(px, py, dir, vertical, color) {
     ctx.strokeStyle = color; ctx.globalAlpha = alpha * breathe;
-    const sz = 7;
+    const hw = 5, hh = 3; // half-width=5 (10px wide), half-height=3 (6px tall)
+    const gap = 6;
     if (vertical) {
       for (let i = 0; i < 2; i++) {
-        const oy = py + dir * (i * 10);
-        ctx.beginPath(); ctx.moveTo(px - sz, oy); ctx.lineTo(px, oy + dir * sz); ctx.lineTo(px + sz, oy); ctx.stroke();
+        const oy = py + dir * (i * gap);
+        ctx.beginPath(); ctx.moveTo(px - hw, oy); ctx.lineTo(px, oy + dir * hh); ctx.lineTo(px + hw, oy); ctx.stroke();
       }
     } else {
       for (let i = 0; i < 2; i++) {
-        const ox = px + dir * (i * 10);
-        ctx.beginPath(); ctx.moveTo(ox, py - sz); ctx.lineTo(ox + dir * sz, py); ctx.lineTo(ox, py + sz); ctx.stroke();
+        const ox = px + dir * (i * gap);
+        ctx.beginPath(); ctx.moveTo(ox, py - hw); ctx.lineTo(ox + dir * hh, py); ctx.lineTo(ox, py + hw); ctx.stroke();
       }
     }
     ctx.globalAlpha = alpha;
   }
 
-  if (Math.abs(lrDiff) > thresh) chevron(cx + (lrDiff > 0 ? -35 : 35), cy, lrDiff > 0 ? -1 : 1, false, 'rgba(255,102,0,0.7)');
-  if (Math.abs(tbDiff) > thresh) chevron(cx, cy + (tbDiff > 0 ? -35 : 35), tbDiff > 0 ? -1 : 1, true, 'rgba(0,207,255,0.7)');
+  if (Math.abs(lrDiff) > thresh) chevron(cx + (lrDiff > 0 ? -35 : 35), cy, lrDiff > 0 ? -1 : 1, false, 'rgba(251,146,60,0.7)');
+  if (Math.abs(tbDiff) > thresh) chevron(cx, cy + (tbDiff > 0 ? -35 : 35), tbDiff > 0 ? -1 : 1, true, 'rgba(56,189,248,0.7)');
   ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
 }
 
@@ -1671,11 +1684,11 @@ function updateStats(card, res) {
   // Grade computation
   const worst = Math.max(lrR, tbR);
   let grade, color, desc;
-  if (worst <= 1.22) { grade = '10'; color = '#00ff88'; desc = borderMode ? 'PSA 10 centering' : 'PSA 10 territory'; }
-  else if (worst <= 1.50) { grade = '9'; color = '#aaff00'; desc = 'Strong PSA 9'; }
-  else if (worst <= 1.86) { grade = '8'; color = '#ffcc00'; desc = 'Likely PSA 8'; }
-  else if (worst <= 2.33) { grade = '7'; color = '#ff8800'; desc = 'PSA 7 range'; }
-  else { grade = '6\u2193'; color = '#ff2244'; desc = 'Off-center'; }
+  if (worst <= 1.22) { grade = '10'; color = '#34d399'; desc = borderMode ? 'PSA 10 centering' : 'PSA 10 territory'; }
+  else if (worst <= 1.50) { grade = '9'; color = '#a3e635'; desc = 'Strong PSA 9'; }
+  else if (worst <= 1.86) { grade = '8'; color = '#fbbf24'; desc = 'Likely PSA 8'; }
+  else if (worst <= 2.33) { grade = '7'; color = '#fb923c'; desc = 'PSA 7 range'; }
+  else { grade = '6\u2193'; color = '#f87171'; desc = 'Off-center'; }
 
   // Grade morph animation on value change
   if (prevGrade !== null && prevGrade !== grade) {
@@ -1703,7 +1716,9 @@ function updateStats(card, res) {
   if (el('drawer-peek-grade')) { el('drawer-peek-grade').textContent = 'PSA ' + grade; el('drawer-peek-grade').style.color = color; }
 
   // CSS custom property theming
+  const glowMap = {'#34d399':'rgba(52,211,153,0.35)','#a3e635':'rgba(163,230,53,0.30)','#fbbf24':'rgba(251,191,36,0.30)','#fb923c':'rgba(251,146,60,0.30)','#f87171':'rgba(248,113,113,0.30)'};
   document.documentElement.style.setProperty('--grade-color', color);
+  document.documentElement.style.setProperty('--grade-glow', glowMap[color] || 'rgba(85,85,85,0.3)');
   const badge = el('hud-badge');
   if (badge) badge.classList.add('has-grade');
   document.querySelector('header').style.borderBottomColor = color;
