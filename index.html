@@ -335,7 +335,7 @@ canvas#proc{display:none}
 <script>
 // ================================================================
 // WEB WORKER — inner border detection only (no card detection)
-// Receives: cropped card image at 300x420
+// Receives: cropped card image at 750x1050
 // Returns: border widths L/R/T/B
 // ================================================================
 const workerCode = `
@@ -363,6 +363,26 @@ function colorVariance(pixels, indices) {
     v += (pixels[i]-avg[0])**2 + (pixels[i+1]-avg[1])**2 + (pixels[i+2]-avg[2])**2;
   }
   return Math.sqrt(v / indices.length);
+}
+
+// Compute the color gradient (rate of change) between consecutive strips.
+// Returns array of gradient magnitudes for each depth position.
+function computeGradientProfile(pixels, getIndices, maxDepth) {
+  const colors = [];
+  for (let d = 0; d < maxDepth; d++) {
+    const idx = getIndices(d);
+    if (!idx.length) break;
+    colors.push(avgColor(pixels, idx));
+  }
+
+  const gradients = new Float32Array(colors.length);
+  // Use a window of 3 pixels for smoothed gradient
+  for (let d = 1; d < colors.length - 1; d++) {
+    const before = colors[d - 1];
+    const after = colors[d + 1];
+    gradients[d] = colorDist(before, after);
+  }
+  return { gradients, colors };
 }
 
 // ================================================================
@@ -453,78 +473,82 @@ function findCardInCrop(pixels, w, h) {
 }
 
 // ================================================================
-// PHASE 2: Within the detected card, find the inner printed border
-// Scans inward from each card edge to find where the uniform border
-// color transitions to the varied artwork.
+// PHASE 2: Find inner border using GRADIENT PEAK detection.
+// Instead of simple threshold scanning, compute the color gradient
+// profile moving inward from each edge, then find the strongest
+// gradient peak — that's where the border transitions to artwork.
 // ================================================================
 function findInnerBorder(pixels, w, cardL, cardT, cardR, cardB) {
   const cardW = cardR - cardL;
   const cardH = cardB - cardT;
 
-  // Sample the middle 60% of each edge to avoid corners
-  const yMid1 = cardT + Math.floor(cardH * 0.2);
-  const yMid2 = cardT + Math.floor(cardH * 0.8);
-  const xMid1 = cardL + Math.floor(cardW * 0.2);
-  const xMid2 = cardL + Math.floor(cardW * 0.8);
-  const maxH = Math.floor(cardW * 0.30);
-  const maxV = Math.floor(cardH * 0.30);
+  // Sample the middle 50% of each edge to avoid corners and rounded edges
+  const yMid1 = cardT + Math.floor(cardH * 0.25);
+  const yMid2 = cardT + Math.floor(cardH * 0.75);
+  const xMid1 = cardL + Math.floor(cardW * 0.25);
+  const xMid2 = cardL + Math.floor(cardW * 0.75);
+  const maxH = Math.floor(cardW * 0.28);
+  const maxV = Math.floor(cardH * 0.28);
 
-  function scanBorder(getIndices, maxDepth) {
-    const edgeIdx = getIndices(0);
-    if (!edgeIdx.length) return 0;
-    const edgeColor = avgColor(pixels, edgeIdx);
-    const edgeVar = colorVariance(pixels, edgeIdx);
+  // Find the border width by locating the strongest gradient peak
+  // (sharpest color change) within the scan range.
+  // Skip the first few pixels (card edge noise) and the last few.
+  function findBorderByGradient(getIndices, maxDepth) {
+    const { gradients } = computeGradientProfile(pixels, getIndices, maxDepth);
+    if (gradients.length < 5) return 0;
 
-    const DIST_THRESH = 28;
-    const VAR_THRESH = Math.max(edgeVar + 15, 25);
-    let consecutive = 0;
+    // Skip first 3 pixels (card edge/rounding noise) and last 10%
+    const startScan = 3;
+    const endScan = Math.floor(gradients.length * 0.9);
 
-    for (let d = 1; d < maxDepth; d++) {
-      const idx = getIndices(d);
-      if (!idx.length) break;
-      const stripColor = avgColor(pixels, idx);
-      const dist = colorDist(stripColor, edgeColor);
-      const variance = colorVariance(pixels, idx);
-
-      if (dist > DIST_THRESH || variance > VAR_THRESH) {
-        consecutive++;
-        if (consecutive >= 2) return d - 1;
-      } else {
-        consecutive = 0;
+    // Find the position of the maximum gradient (strongest color change)
+    let maxGrad = 0, maxPos = 0;
+    for (let d = startScan; d < endScan; d++) {
+      if (gradients[d] > maxGrad) {
+        maxGrad = gradients[d];
+        maxPos = d;
       }
     }
-    return maxDepth; // no transition found
+
+    // The gradient peak must be significant (not just noise)
+    if (maxGrad < 15) return maxDepth; // no clear border found
+
+    return maxPos;
   }
 
-  // Left border: scan from card left edge rightward
-  const bLeft = scanBorder((d) => {
+  // Left border
+  const bLeft = findBorderByGradient((d) => {
     const x = cardL + d;
+    if (x < 0 || x >= w) return [];
     const idx = [];
-    for (let y = yMid1; y < yMid2; y += 2) idx.push((y*w+x)*4);
+    for (let y = yMid1; y < yMid2; y += 3) idx.push((y*w+x)*4);
     return idx;
   }, maxH);
 
-  // Right border: scan from card right edge leftward
-  const bRight = scanBorder((d) => {
+  // Right border
+  const bRight = findBorderByGradient((d) => {
     const x = cardR - 1 - d;
+    if (x < 0 || x >= w) return [];
     const idx = [];
-    for (let y = yMid1; y < yMid2; y += 2) idx.push((y*w+x)*4);
+    for (let y = yMid1; y < yMid2; y += 3) idx.push((y*w+x)*4);
     return idx;
   }, maxH);
 
-  // Top border: scan from card top edge downward
-  const bTop = scanBorder((d) => {
+  // Top border
+  const bTop = findBorderByGradient((d) => {
     const y = cardT + d;
+    if (y < 0 || y >= Math.floor(pixels.length / (w*4))) return [];
     const idx = [];
-    for (let x = xMid1; x < xMid2; x += 2) idx.push((y*w+x)*4);
+    for (let x = xMid1; x < xMid2; x += 3) idx.push((y*w+x)*4);
     return idx;
   }, maxV);
 
-  // Bottom border: scan from card bottom edge upward
-  const bBottom = scanBorder((d) => {
+  // Bottom border
+  const bBottom = findBorderByGradient((d) => {
     const y = cardB - 1 - d;
+    if (y < 0) return [];
     const idx = [];
-    for (let x = xMid1; x < xMid2; x += 2) idx.push((y*w+x)*4);
+    for (let x = xMid1; x < xMid2; x += 3) idx.push((y*w+x)*4);
     return idx;
   }, maxV);
 
@@ -573,7 +597,7 @@ let croppedCardCanvas = null; // the cropped card image
 let analysisResult = null;
 
 // Analysis resolution for the cropped card
-const AW = 300, AH = 420;
+const AW = 750, AH = 1050;
 
 // ================================================================
 // DOM REFS
