@@ -2,7 +2,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Testing</title>
+<title>Centering Cam</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;700;900&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -16,16 +16,19 @@
   canvas#overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
   canvas#proc { display: none; }
   #controls { position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; flex-direction: column; gap: 8px; }
-  .ctrl-btn { background: rgba(0,0,0,0.75); border: 1px solid #333; color: #fff; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.1em; padding: 8px 12px; border-radius: 3px; cursor: pointer; text-transform: uppercase; white-space: nowrap; }
+  #controls-left { position: absolute; top: 10px; left: 10px; z-index: 10; display: flex; flex-direction: column; gap: 8px; }
+  .ctrl-btn { background: rgba(0,0,0,0.75); border: 1px solid #333; color: #fff; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.1em; padding: 8px 12px; border-radius: 3px; cursor: pointer; text-transform: uppercase; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
   .ctrl-btn.active { border-color: var(--green); color: var(--green); }
   #lock-btn { border-color: var(--yellow); color: var(--yellow); }
   #lock-btn.locked { border-color: var(--green); color: var(--green); }
+  #torch-btn.active { border-color: var(--yellow); color: var(--yellow); }
   #start-msg { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.92); z-index: 20; gap: 14px; text-align: center; padding: 24px; }
   #start-msg h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 1.8rem; font-weight: 900; color: var(--yellow); }
   #start-msg p { font-size: 0.75rem; color: #888; max-width: 260px; line-height: 1.7; }
   #start-btn { background: var(--yellow); color: #000; border: none; padding: 14px 32px; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 1.1rem; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 3px; cursor: pointer; margin-top: 4px; }
   #tip { font-size: 0.65rem; color: #444; margin-top: -4px; }
-  #status-bar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); font-size: 0.62rem; color: #aaa; background: rgba(0,0,0,0.65); padding: 4px 12px; border-radius: 20px; z-index: 5; pointer-events: none; letter-spacing: 0.08em; white-space: nowrap; }
+  #status-bar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); font-size: 0.62rem; color: #aaa; background: rgba(0,0,0,0.65); padding: 4px 12px; border-radius: 20px; z-index: 5; pointer-events: none; letter-spacing: 0.08em; white-space: nowrap; transition: background 0.3s; }
+  #status-bar.stable { background: rgba(0,255,136,0.18); color: var(--green); }
   #stats { background: var(--panel); border-top: 1px solid var(--border); padding: 12px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex-shrink: 0; }
   .stat-block { background: #0d0d0d; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; }
   .stat-label { font-size: 0.6rem; color: #555; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 4px; }
@@ -34,56 +37,70 @@
   .stat-ratio { font-size: 0.75rem; color: #888; }
   .bar-wrap { background: #1a1a1a; border-radius: 2px; height: 4px; margin-top: 5px; overflow: hidden; }
   .bar-fill { height: 100%; border-radius: 2px; transition: width 0.15s ease; }
-  .grade-block { grid-column: 1 / -1; background: #0d0d0d; border: 1px solid var(--border); border-radius: 4px; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; }
+  .grade-block { grid-column: 1 / -1; background: #0d0d0d; border: 1px solid var(--border); border-radius: 4px; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; transition: border-color 0.3s; }
   .grade-label { font-size: 0.6rem; color: #555; letter-spacing: 0.15em; text-transform: uppercase; }
-  .grade-value { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 2rem; letter-spacing: 0.05em; }
-  .grade-desc { font-size: 0.7rem; text-align: right; color: #888; }
+  .grade-value { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 2rem; letter-spacing: 0.05em; transition: color 0.3s; }
+  .grade-right { text-align: right; }
+  .grade-desc { font-size: 0.7rem; color: #888; }
+  .grade-confidence { font-size: 0.55rem; color: #444; letter-spacing: 0.1em; margin-top: 2px; }
+  #snap-flash { position: absolute; inset: 0; background: #fff; opacity: 0; z-index: 30; pointer-events: none; transition: opacity 0.15s; }
+  #save-toast { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); background: rgba(0,255,136,0.15); border: 1px solid var(--green); color: var(--green); font-family: 'Barlow Condensed', sans-serif; font-size: 0.75rem; padding: 6px 16px; border-radius: 3px; z-index: 35; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
 </style>
 </head>
 <body>
 <header>
-  <h1>⬛ Centering Cam</h1>
-  <span id="ready-dot">● READY</span>
+  <h1>&#11035; Centering Cam</h1>
+  <span id="ready-dot">&#9679; READY</span>
 </header>
 <div id="cam-wrap">
   <video id="video" autoplay playsinline muted></video>
   <canvas id="overlay"></canvas>
   <canvas id="proc"></canvas>
   <div id="controls">
-    <button class="ctrl-btn active" id="auto-btn">⟳ AUTO</button>
-    <button class="ctrl-btn" id="lock-btn">⬛ LOCK</button>
+    <button class="ctrl-btn active" id="auto-btn">&#10227; AUTO</button>
+    <button class="ctrl-btn" id="lock-btn">&#11035; LOCK</button>
+    <button class="ctrl-btn" id="snap-btn">&#128247; SNAP</button>
   </div>
-  <div id="status-bar">Searching — place card on dark surface</div>
+  <div id="controls-left">
+    <button class="ctrl-btn" id="flip-btn">&#8635; FLIP</button>
+    <button class="ctrl-btn" id="torch-btn">&#128294; LIGHT</button>
+  </div>
+  <div id="snap-flash"></div>
+  <div id="save-toast">Saved to gallery</div>
+  <div id="status-bar">Searching &#8212; place card on dark surface</div>
   <div id="start-msg">
     <h2>Centering Cam</h2>
-    <p>Point your camera at a Pokémon card on a dark surface. Edges are detected automatically.</p>
+    <p>Point your camera at a Pok&eacute;mon card on a dark surface. Edges are detected automatically.</p>
     <button id="start-btn">Start Camera</button>
     <div id="tip">Best results on a black or dark background</div>
   </div>
 </div>
 <div id="stats">
   <div class="stat-block">
-    <div class="stat-label">◀ Left / Right ▶</div>
+    <div class="stat-label">&#9664; Left / Right &#9654;</div>
     <div class="stat-row">
-      <span class="stat-value" id="lr-val" style="color:var(--orange)">—</span>
-      <span class="stat-ratio" id="lr-ratio">—</span>
+      <span class="stat-value" id="lr-val" style="color:var(--orange)">&#8212;</span>
+      <span class="stat-ratio" id="lr-ratio">&#8212;</span>
     </div>
     <div class="bar-wrap"><div class="bar-fill" id="lr-bar" style="background:var(--orange);width:50%"></div></div>
   </div>
   <div class="stat-block">
-    <div class="stat-label">▲ Top / Bottom ▼</div>
+    <div class="stat-label">&#9650; Top / Bottom &#9660;</div>
     <div class="stat-row">
-      <span class="stat-value" id="tb-val" style="color:var(--cyan)">—</span>
-      <span class="stat-ratio" id="tb-ratio">—</span>
+      <span class="stat-value" id="tb-val" style="color:var(--cyan)">&#8212;</span>
+      <span class="stat-ratio" id="tb-ratio">&#8212;</span>
     </div>
     <div class="bar-wrap"><div class="bar-fill" id="tb-bar" style="background:var(--cyan);width:50%"></div></div>
   </div>
-  <div class="grade-block">
+  <div class="grade-block" id="grade-block">
     <div>
       <div class="grade-label">Est. PSA Grade</div>
-      <div class="grade-value" id="grade-val">—</div>
+      <div class="grade-value" id="grade-val">&#8212;</div>
     </div>
-    <div class="grade-desc" id="grade-desc">Point camera<br>at card</div>
+    <div class="grade-right">
+      <div class="grade-desc" id="grade-desc">Point camera<br>at card</div>
+      <div class="grade-confidence" id="grade-conf"></div>
+    </div>
   </div>
 </div><script>
 const video     = document.getElementById('video');
@@ -94,29 +111,35 @@ const pctx      = proc.getContext('2d', { willReadFrequently: true });
 const wrap      = document.getElementById('cam-wrap');
 const statusBar = document.getElementById('status-bar');
 
-// Cache all DOM elements accessed per-frame
-const $lrVal   = document.getElementById('lr-val');
-const $tbVal   = document.getElementById('tb-val');
-const $lrRatio = document.getElementById('lr-ratio');
-const $tbRatio = document.getElementById('tb-ratio');
-const $lrBar   = document.getElementById('lr-bar');
-const $tbBar   = document.getElementById('tb-bar');
-const $grade   = document.getElementById('grade-val');
-const $gDesc   = document.getElementById('grade-desc');
-const $autoBtn = document.getElementById('auto-btn');
-const $lockBtn = document.getElementById('lock-btn');
+// Cache DOM
+const $lrVal    = document.getElementById('lr-val');
+const $tbVal    = document.getElementById('tb-val');
+const $lrRatio  = document.getElementById('lr-ratio');
+const $tbRatio  = document.getElementById('tb-ratio');
+const $lrBar    = document.getElementById('lr-bar');
+const $tbBar    = document.getElementById('tb-bar');
+const $grade    = document.getElementById('grade-val');
+const $gDesc    = document.getElementById('grade-desc');
+const $gConf    = document.getElementById('grade-conf');
+const $gBlock   = document.getElementById('grade-block');
+const $autoBtn  = document.getElementById('auto-btn');
+const $lockBtn  = document.getElementById('lock-btn');
+const $snapBtn  = document.getElementById('snap-btn');
+const $flipBtn  = document.getElementById('flip-btn');
+const $torchBtn = document.getElementById('torch-btn');
 const $startMsg = document.getElementById('start-msg');
+const $flash    = document.getElementById('snap-flash');
+const $toast    = document.getElementById('save-toast');
 
 let locked = false, lockedCard = null, smoothCard = null, lastDetect = 0;
+let currentStream = null, facingBack = true, torchOn = false;
 const SMOOTH = 0.15;
 const PW = 160, PH = 120;
-const PIXELS = PW * PH;
-const THRESH = 55;
 const ROW_T = 0.25, COL_T = 0.25;
 
 // Grade lookup: [maxRatio, label, color, description]
 const GRADES = [
-  [1.22, '10', '#00ff88', 'PSA 10 territory \u{1F525}'],
+  [1.22, '10', '#00ff88', 'PSA 10 territory'],
   [1.50, '9',  '#aaff00', 'Strong PSA 9'],
   [1.86, '8',  '#ffcc00', 'Likely PSA 8'],
   [2.33, '7',  '#ff8800', 'PSA 7 range'],
@@ -125,14 +148,19 @@ const GRADES = [
 
 proc.width = PW; proc.height = PH;
 
-// Pre-allocate buffers reused every detection frame
-const gray = new Uint8Array(PIXELS);
+// Pre-allocate buffers
 const rowBright = new Float32Array(PH);
 const colBright = new Float32Array(PW);
+const histogram = new Uint32Array(256);
+
+// Stability tracking - rolling window of recent worst-ratios
+const STABILITY_SIZE = 12;
+const stabilityBuf = new Float32Array(STABILITY_SIZE);
+let stabilityIdx = 0, stabilityFilled = 0;
 
 function lerp(a, b, t) { return a + (b - a) * t; }
 
-function ratio(a, b) {
+function ratioOf(a, b) {
   return Math.min(a, b) > 2 ? Math.max(a, b) / Math.min(a, b) : 99;
 }
 
@@ -141,23 +169,79 @@ function pct(a, b) {
   return t ? `${Math.round(a / t * 100)}/${Math.round(b / t * 100)}` : '\u2014';
 }
 
-// Returns {lB, rB, tB, bB, lrR, tbR, worst} for a card rect
 function computeMargins(card) {
   const W = overlay.width, H = overlay.height;
   const lB = card.x, rB = W - (card.x + card.w);
   const tB = card.y, bB = H - (card.y + card.h);
-  const lrR = ratio(lB, rB);
-  const tbR = ratio(tB, bB);
+  const lrR = ratioOf(lB, rB);
+  const tbR = ratioOf(tB, bB);
   return { lB, rB, tB, bB, lrR, tbR, worst: Math.max(lrR, tbR) };
+}
+
+// --- Otsu's method for adaptive threshold ---
+function otsuThreshold(data, len) {
+  histogram.fill(0);
+  for (let y = 0; y < PH; y++) {
+    const rowOff = y * PW;
+    for (let x = 0; x < PW; x++) {
+      const i = (rowOff + x) * 4;
+      const g = (data[i] * 77 + data[i + 1] * 150 + data[i + 2] * 29) >> 8;
+      histogram[g]++;
+    }
+  }
+
+  const total = PW * PH;
+  let sumAll = 0;
+  for (let i = 0; i < 256; i++) sumAll += i * histogram[i];
+
+  let sumBg = 0, wBg = 0, best = 0, thresh = 55;
+
+  for (let t = 0; t < 256; t++) {
+    wBg += histogram[t];
+    if (wBg === 0) continue;
+    const wFg = total - wBg;
+    if (wFg === 0) break;
+    sumBg += t * histogram[t];
+    const meanBg = sumBg / wBg;
+    const meanFg = (sumAll - sumBg) / wFg;
+    const diff = meanBg - meanFg;
+    const variance = wBg * wFg * diff * diff;
+    if (variance > best) { best = variance; thresh = t; }
+  }
+  return thresh;
+}
+
+// --- Camera management ---
+async function startCamera(facing) {
+  if (currentStream) {
+    currentStream.getTracks().forEach(t => t.stop());
+  }
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: facing ? 'environment' : 'user' }, width: { ideal: 1920 } }
+  });
+  video.srcObject = stream;
+  currentStream = stream;
+  torchOn = false;
+  $torchBtn.classList.remove('active');
+  return stream;
+}
+
+async function toggleTorch() {
+  if (!currentStream) return;
+  const track = currentStream.getVideoTracks()[0];
+  const caps = track.getCapabilities ? track.getCapabilities() : {};
+  if (!caps.torch) return;
+  torchOn = !torchOn;
+  try {
+    await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+    $torchBtn.classList.toggle('active', torchOn);
+  } catch(e) { torchOn = false; }
 }
 
 // --- Camera start ---
 document.getElementById('start-btn').addEventListener('click', async () => {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } }
-    });
-    video.srcObject = stream;
+    await startCamera(true);
     $startMsg.style.display = 'none';
     resizeCanvas();
     requestAnimationFrame(loop);
@@ -171,6 +255,7 @@ document.getElementById('start-btn').addEventListener('click', async () => {
 
 $autoBtn.addEventListener('click', () => {
   locked = false; lockedCard = null;
+  stabilityIdx = 0; stabilityFilled = 0;
   $autoBtn.classList.add('active');
   $lockBtn.classList.remove('locked');
   $lockBtn.textContent = '\u2B1B LOCK';
@@ -181,8 +266,88 @@ $lockBtn.addEventListener('click', () => {
     locked = true; lockedCard = { ...smoothCard };
     $lockBtn.classList.add('locked');
     $lockBtn.textContent = '\u2713 LOCKED';
+    vibrate(15);
   }
 });
+
+$flipBtn.addEventListener('click', async () => {
+  facingBack = !facingBack;
+  try { await startCamera(facingBack); } catch(e) { /* ignore */ }
+});
+
+$torchBtn.addEventListener('click', () => toggleTorch());
+
+// Tap video area to lock/unlock
+wrap.addEventListener('click', (e) => {
+  if (e.target.closest('.ctrl-btn') || e.target.closest('#start-msg')) return;
+  if (locked) {
+    $autoBtn.click();
+  } else if (smoothCard) {
+    $lockBtn.click();
+  }
+});
+
+// --- Snapshot ---
+$snapBtn.addEventListener('click', () => {
+  if (!smoothCard && !lockedCard) return;
+  const card = locked ? lockedCard : smoothCard;
+  if (!card) return;
+
+  // Flash effect
+  $flash.style.opacity = '0.6';
+  setTimeout(() => { $flash.style.opacity = '0'; }, 100);
+  vibrate(10);
+
+  // Composite video + overlay onto a temp canvas
+  const c = document.createElement('canvas');
+  const w = video.videoWidth || overlay.width;
+  const h = video.videoHeight || overlay.height;
+  c.width = w; c.height = h;
+  const tctx = c.getContext('2d');
+
+  // Draw video frame
+  tctx.drawImage(video, 0, 0, w, h);
+
+  // Scale overlay onto it
+  tctx.drawImage(overlay, 0, 0, w, h);
+
+  // Draw stats watermark at bottom
+  const { lB, rB, tB, bB, lrR, tbR, worst } = computeMargins(card);
+  let gradeLabel = '';
+  for (const [threshold, label] of GRADES) {
+    if (worst <= threshold) { gradeLabel = label; break; }
+  }
+  const fontSize = Math.round(w * 0.028);
+  tctx.fillStyle = 'rgba(0,0,0,0.7)';
+  tctx.fillRect(0, h - fontSize * 2.8, w, fontSize * 2.8);
+  tctx.fillStyle = '#fff';
+  tctx.font = `bold ${fontSize}px 'Barlow Condensed', sans-serif`;
+  tctx.textAlign = 'center';
+  tctx.fillText(
+    `L/R: ${pct(lB, rB)} (${lrR.toFixed(2)}:1)  |  T/B: ${pct(tB, bB)} (${tbR.toFixed(2)}:1)  |  Grade: ${gradeLabel}`,
+    w / 2, h - fontSize * 0.9
+  );
+
+  // Download
+  c.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `centering-${Date.now()}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast();
+  }, 'image/png');
+});
+
+function showToast() {
+  $toast.style.opacity = '1';
+  setTimeout(() => { $toast.style.opacity = '0'; }, 2000);
+}
+
+function vibrate(ms) {
+  if (navigator.vibrate) navigator.vibrate(ms);
+}
 
 function resizeCanvas() {
   overlay.width  = wrap.clientWidth;
@@ -190,6 +355,33 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
+
+// --- Stability tracking ---
+function pushStability(worst) {
+  stabilityBuf[stabilityIdx % STABILITY_SIZE] = worst;
+  stabilityIdx++;
+  if (stabilityFilled < STABILITY_SIZE) stabilityFilled++;
+}
+
+function getStability() {
+  if (stabilityFilled < 3) return { avg: 0, variance: 99, label: '', pct: 0 };
+  let sum = 0;
+  for (let i = 0; i < stabilityFilled; i++) sum += stabilityBuf[i];
+  const avg = sum / stabilityFilled;
+  let vsum = 0;
+  for (let i = 0; i < stabilityFilled; i++) {
+    const d = stabilityBuf[i] - avg;
+    vsum += d * d;
+  }
+  const variance = vsum / stabilityFilled;
+  // Low variance = stable reading
+  let label, pctVal;
+  if (variance < 0.005) { label = 'STABLE'; pctVal = 100; }
+  else if (variance < 0.02) { label = 'SETTLING'; pctVal = 70; }
+  else if (variance < 0.08) { label = 'ADJUSTING'; pctVal = 40; }
+  else { label = 'MOVING'; pctVal = 10; }
+  return { avg, variance, label, pct: pctVal };
+}
 
 // --- Main loop ---
 let frameCount = 0;
@@ -201,14 +393,17 @@ function loop() {
   if (card) updateStats(card);
 }
 
-// --- Card detection (reuses pre-allocated buffers) ---
+// --- Card detection with adaptive threshold ---
 function detectCard() {
   try { pctx.drawImage(video, 0, 0, PW, PH); }
   catch(e) { return; }
 
   const data = pctx.getImageData(0, 0, PW, PH).data;
 
-  // Grayscale conversion + row/col projection in a single pass
+  // Adaptive threshold via Otsu's method
+  const thresh = otsuThreshold(data, PW * PH);
+
+  // Grayscale + row/col projection in single pass
   rowBright.fill(0);
   colBright.fill(0);
 
@@ -218,20 +413,17 @@ function detectCard() {
     for (let x = 0; x < PW; x++) {
       const i = (rowOff + x) * 4;
       const g = (data[i] * 77 + data[i + 1] * 150 + data[i + 2] * 29) >> 8;
-      if (g > THRESH) {
+      if (g > thresh) {
         rowCnt++;
         colBright[x]++;
       }
     }
     rowBright[y] = rowCnt / PW;
   }
-
-  // Normalize column counts
   for (let x = 0; x < PW; x++) colBright[x] /= PH;
 
   // Find edges
   let top = -1, bot = -1, left = -1, right = -1;
-
   for (let y = 0; y < PH; y++) {
     if (rowBright[y] > ROW_T) { if (top < 0) top = y; bot = y; }
   }
@@ -243,6 +435,7 @@ function detectCard() {
     if (Date.now() - lastDetect > 1200) {
       smoothCard = null;
       statusBar.textContent = 'Searching \u2014 place card on dark surface';
+      statusBar.classList.remove('stable');
     }
     return;
   }
@@ -258,7 +451,9 @@ function detectCard() {
   const sy = overlay.height / PH;
   const nx = left * sx, ny = top * sy, nw = cw * sx, nh = ch * sy;
 
+  // Haptic on first detection
   if (!smoothCard) {
+    vibrate(12);
     smoothCard = { x: nx, y: ny, w: nw, h: nh };
   } else {
     smoothCard.x = lerp(smoothCard.x, nx, SMOOTH);
@@ -267,10 +462,18 @@ function detectCard() {
     smoothCard.h = lerp(smoothCard.h, nh, SMOOTH);
   }
   lastDetect = Date.now();
-  statusBar.textContent = `Card detected \u00b7 AR ${ar.toFixed(2)}`;
+
+  const stab = getStability();
+  if (stab.label === 'STABLE') {
+    statusBar.textContent = `Locked on \u00b7 AR ${ar.toFixed(2)} \u00b7 ${stab.label}`;
+    statusBar.classList.add('stable');
+  } else {
+    statusBar.textContent = `Detected \u00b7 AR ${ar.toFixed(2)} \u00b7 ${stab.label}`;
+    statusBar.classList.remove('stable');
+  }
 }
 
-// --- Draws a line from (x1,y1) to (x2,y2) on the current path ---
+// --- Draw helper ---
 function line(x1, y1, x2, y2) {
   ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
 }
@@ -306,7 +509,7 @@ function drawOverlay(card) {
   ctx.fillRect(xr, y, W - xr, ch);
 
   // Grade colour
-  const { worst } = computeMargins(card);
+  const { worst, lB, rB, tB, bB } = computeMargins(card);
   const bc = worst <= 1.22 ? '#00ff88' : worst <= 1.5 ? '#aaff00' : worst <= 1.86 ? '#ffcc00' : '#ff6600';
 
   // Glow border
@@ -314,7 +517,7 @@ function drawOverlay(card) {
   ctx.shadowColor = bc; ctx.shadowBlur = 12;
   ctx.strokeRect(x, y, cw, ch); ctx.shadowBlur = 0;
 
-  // Corner brackets (single batched path)
+  // Corner brackets
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
   ctx.beginPath();
   line(x, y, x + 22, y); line(x, y, x, y + 22);
@@ -323,7 +526,7 @@ function drawOverlay(card) {
   line(xr, yb, xr - 22, yb); line(xr, yb, xr, yb - 22);
   ctx.stroke();
 
-  // Crosshair (single batched path)
+  // Crosshair
   ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.setLineDash([4, 5]); ctx.lineWidth = 1;
   ctx.beginPath();
   line(x + cw / 2, y, x + cw / 2, yb);
@@ -331,14 +534,14 @@ function drawOverlay(card) {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Edge lines - cyan horizontal (single path)
+  // Edge lines - cyan horizontal
   ctx.strokeStyle = '#00cfff'; ctx.lineWidth = 1.5; ctx.shadowColor = '#00cfff'; ctx.shadowBlur = 5;
   ctx.beginPath();
   line(0, y, W, y);
   line(0, yb, W, yb);
   ctx.stroke();
 
-  // Edge lines - orange vertical (single path)
+  // Edge lines - orange vertical
   ctx.strokeStyle = '#ff6600'; ctx.shadowColor = '#ff6600';
   ctx.beginPath();
   line(x, 0, x, H);
@@ -346,17 +549,32 @@ function drawOverlay(card) {
   ctx.stroke();
   ctx.shadowBlur = 0;
 
-  // Frame center reference (single path)
+  // Frame center reference
   ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.setLineDash([3, 8]); ctx.lineWidth = 1;
   ctx.beginPath();
   line(W / 2, 0, W / 2, H);
   line(0, H / 2, W, H / 2);
   ctx.stroke();
   ctx.setLineDash([]);
+
+  // Border measurement labels
+  ctx.font = '10px "Share Tech Mono"'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(255,102,0,0.7)';
+  const lPx = Math.round(lB), rPx = Math.round(rB);
+  if (lB > 30) ctx.fillText(`${lPx}px`, x / 2, y + ch / 2);
+  if (rB > 30) ctx.fillText(`${rPx}px`, xr + rB / 2, y + ch / 2);
+  ctx.fillStyle = 'rgba(0,207,255,0.7)';
+  const tPx = Math.round(tB), bPx = Math.round(bB);
+  if (tB > 20) ctx.fillText(`${tPx}px`, x + cw / 2, y / 2);
+  if (bB > 20) ctx.fillText(`${bPx}px`, x + cw / 2, yb + bB / 2);
+  ctx.textBaseline = 'alphabetic';
 }
 
 function updateStats(card) {
   const { lB, rB, tB, bB, lrR, tbR, worst } = computeMargins(card);
+
+  // Push to stability tracker
+  pushStability(worst);
 
   $lrVal.textContent   = pct(lB, rB);
   $tbVal.textContent   = pct(tB, bB);
@@ -370,8 +588,16 @@ function updateStats(card) {
       $grade.textContent = label;
       $grade.style.color = color;
       $gDesc.textContent = desc;
+      $gBlock.style.borderColor = color + '33';
       break;
     }
+  }
+
+  // Show stability confidence
+  const stab = getStability();
+  if (stab.label) {
+    $gConf.textContent = `Confidence: ${stab.label} (${stab.pct}%)`;
+    $gConf.style.color = stab.pct >= 100 ? 'var(--green)' : stab.pct >= 70 ? '#aaff00' : '#555';
   }
 }
 </script></body>
