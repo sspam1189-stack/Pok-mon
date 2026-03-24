@@ -15,7 +15,7 @@
 body{background:#000;color:#fff;font-family:'Inter',system-ui,sans-serif;height:100dvh;width:100dvw;overflow:hidden;position:relative;-webkit-tap-highlight-color:transparent}
 
 /* ============================================================
-   SCREENS — only one visible at a time
+   SCREENS
    ============================================================ */
 .screen{position:absolute;inset:0;width:100%;height:100%;display:none;flex-direction:column}
 .screen.active{display:flex}
@@ -53,7 +53,6 @@ body{background:#000;color:#fff;font-family:'Inter',system-ui,sans-serif;height:
 video{width:100%;height:100%;object-fit:cover;display:block}
 canvas#guide-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
 
-/* Camera utility buttons — top row */
 .cam-top-bar{
   position:absolute;top:0;left:0;right:0;z-index:10;
   display:flex;justify-content:space-between;align-items:center;
@@ -71,7 +70,6 @@ canvas#guide-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-ev
 .cam-btn:active{transform:scale(0.9);opacity:.7}
 .cam-btn.active{border-color:var(--yellow);color:var(--yellow);box-shadow:0 0 12px rgba(251,191,36,0.2)}
 
-/* Capture button — bottom center */
 .cam-bottom-bar{
   position:absolute;bottom:0;left:0;right:0;z-index:10;
   display:flex;justify-content:center;align-items:center;
@@ -90,7 +88,6 @@ canvas#guide-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-ev
   content:'';position:absolute;inset:4px;border-radius:50%;
   border:2px solid rgba(0,0,0,0.08);
 }
-/* Upload button — bottom left of capture */
 .cam-bottom-side{
   position:absolute;bottom:0;left:0;right:0;z-index:9;
   display:flex;justify-content:space-between;align-items:center;
@@ -119,6 +116,35 @@ canvas#guide-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-ev
 .analyzing-text{font-weight:600;font-size:.9rem;color:#aaa;letter-spacing:.08em}
 
 /* ============================================================
+   UPLOAD CROP SCREEN
+   ============================================================ */
+#screen-upload-crop{background:#000;align-items:center;justify-content:center}
+#upload-crop-wrap{
+  position:relative;flex:1;width:100%;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  touch-action:none;
+}
+#upload-img{
+  position:absolute;
+  transform-origin:0 0;
+  user-select:none;-webkit-user-select:none;
+  pointer-events:none;
+}
+canvas#upload-guide-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2}
+.upload-crop-hint{
+  position:absolute;top:12px;left:0;right:0;z-index:10;text-align:center;
+  font-size:.7rem;color:rgba(255,255,255,0.5);font-weight:500;
+  padding:8px;background:linear-gradient(to bottom,rgba(0,0,0,0.5),transparent);
+}
+.upload-crop-actions{
+  position:absolute;bottom:0;left:0;right:0;z-index:10;
+  display:flex;justify-content:center;gap:12px;
+  padding:16px 24px max(16px, env(safe-area-inset-bottom));
+  background:linear-gradient(to top,rgba(0,0,0,0.5),transparent);
+}
+.upload-crop-actions button{flex:1;max-width:180px;text-align:center;padding:14px 16px}
+
+/* ============================================================
    RESULTS SCREEN
    ============================================================ */
 #screen-results{background:var(--bg)}
@@ -131,7 +157,6 @@ canvas#result-canvas{
   max-width:100%;max-height:100%;object-fit:contain;
   display:block;
 }
-/* Grade badge overlaid on result image */
 .result-grade-badge{
   position:absolute;top:12px;right:12px;z-index:3;
   background:var(--panel);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
@@ -145,7 +170,6 @@ canvas#result-canvas{
 .result-grade-label{font-weight:700;font-size:.5rem;color:rgba(255,255,255,0.4);letter-spacing:.15em;text-transform:uppercase}
 .result-grade-desc{font-weight:600;font-size:.7rem;color:#ccc}
 
-/* Stats panel below image */
 .results-stats{
   flex-shrink:0;
   background:var(--panel);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
@@ -164,14 +188,9 @@ canvas#result-canvas{
 .stat-bar{display:flex;height:5px;border-radius:3px;overflow:hidden;margin-top:6px;background:#1a1a1a}
 .stat-bar-left{height:100%;border-radius:3px 0 0 3px;transition:width .3s}
 .stat-bar-right{height:100%;border-radius:0 3px 3px 0;opacity:.4;transition:width .3s}
-.stats-mode{
-  text-align:center;font-size:.55rem;color:#444;letter-spacing:.14em;text-transform:uppercase;
-  margin-bottom:10px;
-}
 .results-actions{display:flex;gap:10px}
 .results-actions .btn-primary,.results-actions .btn-secondary{flex:1;text-align:center;padding:14px 16px}
 
-/* Detection failed state */
 .result-failed{
   position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:14px;text-align:center;padding:32px;height:100%;
@@ -205,7 +224,7 @@ canvas#proc{display:none}
     <button class="btn-primary" id="start-camera-btn">Start Camera</button>
     <button class="btn-secondary" id="start-upload-btn">&#128206; Upload Photo</button>
   </div>
-  <div class="start-tip">Works best on dark backgrounds with good lighting</div>
+  <div class="start-tip">Position your card within the guide frame</div>
   <input type="file" id="file-input-start" accept="image/*" style="display:none">
 </div>
 
@@ -216,26 +235,21 @@ canvas#proc{display:none}
     <canvas id="guide-overlay"></canvas>
     <canvas id="proc"></canvas>
 
-    <!-- Top bar: flip, torch -->
     <div class="cam-top-bar">
       <div class="cam-top-left">
         <button class="cam-btn" id="flip-btn" aria-label="Flip camera">&#x1F504;</button>
         <button class="cam-btn" id="torch-btn" aria-label="Toggle light" style="display:none">&#x1F526;</button>
       </div>
-      <div class="cam-top-right">
-        <!-- intentionally empty for balance -->
-      </div>
+      <div class="cam-top-right"></div>
     </div>
 
-    <!-- Bottom: capture button -->
     <div class="cam-bottom-bar">
       <button id="capture-btn" aria-label="Capture photo"></button>
     </div>
 
-    <!-- Bottom side buttons: upload & placeholder -->
     <div class="cam-bottom-side">
       <button class="cam-btn" id="gallery-btn" aria-label="Upload from gallery">&#x1F5BC;</button>
-      <div style="width:42px"></div><!-- spacer -->
+      <div style="width:42px"></div>
     </div>
 
     <input type="file" id="file-input" accept="image/*">
@@ -251,11 +265,23 @@ canvas#proc{display:none}
   </div>
 </div>
 
+<!-- ===== UPLOAD CROP SCREEN ===== -->
+<div class="screen" id="screen-upload-crop">
+  <div id="upload-crop-wrap">
+    <img id="upload-img" alt="">
+    <canvas id="upload-guide-overlay"></canvas>
+    <div class="upload-crop-hint">Pinch to zoom &middot; Drag to position card in frame</div>
+  </div>
+  <div class="upload-crop-actions">
+    <button class="btn-secondary" id="upload-cancel-btn">Cancel</button>
+    <button class="btn-primary" id="upload-analyze-btn">Analyze</button>
+  </div>
+</div>
+
 <!-- ===== RESULTS SCREEN ===== -->
 <div class="screen" id="screen-results">
   <div class="results-image-wrap" id="results-image-wrap">
     <canvas id="result-canvas"></canvas>
-    <!-- Grade badge (populated by JS) -->
     <div class="result-grade-badge" id="result-grade-badge" style="display:none">
       <div>
         <div class="result-grade-num" id="result-grade-num">--</div>
@@ -265,15 +291,13 @@ canvas#proc{display:none}
         <div class="result-grade-desc" id="result-grade-desc">--</div>
       </div>
     </div>
-    <!-- Failed state -->
     <div class="result-failed" id="result-failed" style="display:none">
       <div class="result-failed-icon">&#x26A0;</div>
-      <div class="result-failed-title">Card Not Detected</div>
-      <div class="result-failed-sub">Try again with better lighting, a darker background, or make sure the full card is visible in the frame.</div>
+      <div class="result-failed-title">Border Not Detected</div>
+      <div class="result-failed-sub">Make sure the card fills the guide frame and the border is visible. Try with better lighting.</div>
     </div>
   </div>
   <div class="results-stats" id="results-stats" style="display:none">
-    <div class="stats-mode" id="stats-mode">BORDER MODE</div>
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-label">&#x25C0; Left / Right &#x25B6;</div>
@@ -299,7 +323,6 @@ canvas#proc{display:none}
       <button class="btn-primary" id="save-btn">&#x1F4BE; Save</button>
     </div>
   </div>
-  <!-- Actions shown when detection fails -->
   <div class="results-stats" id="results-failed-actions" style="display:none">
     <div class="results-actions">
       <button class="btn-primary" id="retake-failed-btn" style="width:100%">&#x1F504; Try Again</button>
@@ -310,19 +333,20 @@ canvas#proc{display:none}
 
 <script>
 // ================================================================
-// WEB WORKER — detection pipeline (Sobel, Otsu, corners, homography, inner borders)
+// WEB WORKER — inner border detection only (no card detection)
+// Receives: cropped card image at 300x420
+// Returns: border widths L/R/T/B
 // ================================================================
 const workerCode = `
 'use strict';
 
-// --- Gaussian blur 3x3 ---
 function blur3x3(src, w, h) {
   const dst = new Uint8Array(w * h);
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
       dst[y*w+x] = (
         src[(y-1)*w+x-1] + src[(y-1)*w+x]*2 + src[(y-1)*w+x+1] +
-        src[y*w+x-1]*2     + src[y*w+x]*4     + src[y*w+x+1]*2 +
+        src[y*w+x-1]*2   + src[y*w+x]*4     + src[y*w+x+1]*2 +
         src[(y+1)*w+x-1] + src[(y+1)*w+x]*2 + src[(y+1)*w+x+1]
       ) >> 4;
     }
@@ -330,539 +354,115 @@ function blur3x3(src, w, h) {
   return dst;
 }
 
-// --- Sobel edge detection ---
-function sobel(gray, w, h) {
-  const mag = new Float32Array(w * h);
-  const dirX = new Float32Array(w * h);
-  const dirY = new Float32Array(w * h);
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const gx =
-        -gray[(y-1)*w+x-1] + gray[(y-1)*w+x+1] +
-        -2*gray[y*w+x-1]   + 2*gray[y*w+x+1] +
-        -gray[(y+1)*w+x-1] + gray[(y+1)*w+x+1];
-      const gy =
-        -gray[(y-1)*w+x-1] - 2*gray[(y-1)*w+x] - gray[(y-1)*w+x+1] +
-         gray[(y+1)*w+x-1] + 2*gray[(y+1)*w+x] + gray[(y+1)*w+x+1];
-      const i = y * w + x;
-      mag[i] = Math.sqrt(gx * gx + gy * gy);
-      dirX[i] = gx;
-      dirY[i] = gy;
+function avgColor(pixels, indices) {
+  let r = 0, g = 0, b = 0;
+  for (const i of indices) { r += pixels[i]; g += pixels[i+1]; b += pixels[i+2]; }
+  const n = indices.length;
+  return n ? [r/n, g/n, b/n] : [0,0,0];
+}
+
+function colorDist(c1, c2) {
+  return Math.sqrt((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2 + (c1[2]-c2[2])**2);
+}
+
+function colorVariance(pixels, indices) {
+  if (indices.length < 2) return 0;
+  const avg = avgColor(pixels, indices);
+  let v = 0;
+  for (const i of indices) {
+    v += (pixels[i]-avg[0])**2 + (pixels[i+1]-avg[1])**2 + (pixels[i+2]-avg[2])**2;
+  }
+  return Math.sqrt(v / indices.length);
+}
+
+// Scan inward from one edge to find where the border ends (color transition)
+function findBorder(pixels, getIndices, maxDepth) {
+  // Sample the outermost strip as the "border color"
+  const edgeIdx = getIndices(0);
+  if (!edgeIdx.length) return 0;
+  const edgeColor = avgColor(pixels, edgeIdx);
+  const edgeVar = colorVariance(pixels, edgeIdx);
+
+  let borderWidth = 0;
+  const DIST_THRESH = 32;
+  const VAR_THRESH = edgeVar + 18;
+  let consecutive = 0;
+
+  for (let d = 1; d < maxDepth; d++) {
+    const idx = getIndices(d);
+    if (!idx.length) break;
+    const stripColor = avgColor(pixels, idx);
+    const dist = colorDist(stripColor, edgeColor);
+    const variance = colorVariance(pixels, idx);
+
+    if (dist > DIST_THRESH || variance > VAR_THRESH) {
+      consecutive++;
+      if (consecutive >= 2) { borderWidth = d - 1; break; }
+    } else {
+      consecutive = 0;
     }
   }
-  return { mag, dirX, dirY };
+  if (!borderWidth) borderWidth = maxDepth;
+  return borderWidth;
 }
 
-// --- Otsu threshold ---
-function otsu(data, len) {
-  const hist = new Int32Array(256);
-  let maxVal = 0;
-  for (let i = 0; i < len; i++) {
-    const v = Math.min(255, Math.max(0, data[i] | 0));
-    hist[v]++;
-    if (v > maxVal) maxVal = v;
-  }
-  let sumAll = 0;
-  for (let i = 0; i <= maxVal; i++) sumAll += i * hist[i];
-  let sumB = 0, wB = 0, best = 0, threshold = 0;
-  for (let t = 0; t <= maxVal; t++) {
-    wB += hist[t];
-    if (!wB) continue;
-    const wF = len - wB;
-    if (!wF) break;
-    sumB += t * hist[t];
-    const d = sumB / wB - (sumAll - sumB) / wF;
-    const between = wB * wF * d * d;
-    if (between > best) { best = between; threshold = t; }
-  }
-  return threshold;
-}
+self.onmessage = function(e) {
+  const { data: pixels, width: w, height: h } = e.data;
 
-// --- Line fitting (least squares) ---
-function fitLine(points) {
-  if (points.length < 2) return null;
-  const n = points.length;
-  let sx = 0, sy = 0, sxx = 0, sxy = 0;
-  for (const p of points) { sx += p.x; sy += p.y; sxx += p.x*p.x; sxy += p.x*p.y; }
-  const denom = n * sxx - sx * sx;
-  if (Math.abs(denom) < 1e-10) {
-    return { vertical: true, x: sx / n };
-  }
-  const m = (n * sxy - sx * sy) / denom;
-  const b = (sy - m * sx) / n;
-  return { vertical: false, m, b };
-}
-
-function fitLineBest(points) {
-  if (points.length < 2) return null;
-  const lineYX = fitLine(points);
-  const swapped = points.map(p => ({x: p.y, y: p.x}));
-  const lineXY = fitLine(swapped);
-
-  let resYX = 0, resXY = 0;
-  for (const p of points) {
-    if (lineYX && !lineYX.vertical) {
-      const d = p.y - (lineYX.m * p.x + lineYX.b);
-      resYX += d * d;
-    } else resYX = Infinity;
-    if (lineXY && !lineXY.vertical) {
-      const d = p.x - (lineXY.m * p.y + lineXY.b);
-      resXY += d * d;
-    } else resXY = Infinity;
-  }
-
-  if (resYX <= resXY && lineYX && !lineYX.vertical) {
-    return { a: lineYX.m, b: -1, c: lineYX.b };
-  } else if (lineXY && !lineXY.vertical) {
-    return { a: 1, b: -lineXY.m, c: -lineXY.b };
-  }
-  return null;
-}
-
-function intersectLines(l1, l2) {
-  const det = l1.a * l2.b - l2.a * l1.b;
-  if (Math.abs(det) < 1e-10) return null;
-  return {
-    x: (l1.b * l2.c - l2.b * l1.c) / det,
-    y: (l2.a * l1.c - l1.a * l2.c) / det
-  };
-}
-
-// --- Homography (DLT with Gaussian elimination) ---
-function computeHomography(src, dst) {
-  const A = [], b = [];
-  for (let i = 0; i < 4; i++) {
-    const sx = src[i].x, sy = src[i].y, dx = dst[i].x, dy = dst[i].y;
-    A.push([sx, sy, 1, 0, 0, 0, -dx*sx, -dx*sy]);
-    b.push(dx);
-    A.push([0, 0, 0, sx, sy, 1, -dy*sx, -dy*sy]);
-    b.push(dy);
-  }
-  const n = 8;
-  const M = A.map((row, i) => [...row, b[i]]);
-  for (let col = 0; col < n; col++) {
-    let best = Math.abs(M[col][col]), pivot = col;
-    for (let r = col+1; r < n; r++) { const v = Math.abs(M[r][col]); if (v > best) { best = v; pivot = r; } }
-    if (pivot !== col) { const tmp = M[col]; M[col] = M[pivot]; M[pivot] = tmp; }
-    if (Math.abs(M[col][col]) < 1e-12) return null;
-    for (let r = col+1; r < n; r++) {
-      const f = M[r][col] / M[col][col];
-      for (let j = col; j <= n; j++) M[r][j] -= f * M[col][j];
-    }
-  }
-  const h = new Array(n);
-  for (let i = n-1; i >= 0; i--) {
-    h[i] = M[i][n];
-    for (let j = i+1; j < n; j++) h[i] -= M[i][j] * h[j];
-    h[i] /= M[i][i];
-  }
-  return [[h[0],h[1],h[2]], [h[3],h[4],h[5]], [h[6],h[7],1]];
-}
-
-function invertH(H) {
-  const [[a,b,c],[d,e,f],[g,h,i]] = H;
-  const det = a*(e*i-f*h) - b*(d*i-f*g) + c*(d*h-e*g);
-  if (Math.abs(det) < 1e-12) return null;
-  const inv = 1/det;
-  return [
-    [(e*i-f*h)*inv, (c*h-b*i)*inv, (b*f-c*e)*inv],
-    [(f*g-d*i)*inv, (a*i-c*g)*inv, (c*d-a*f)*inv],
-    [(d*h-e*g)*inv, (b*g-a*h)*inv, (a*e-b*d)*inv]
-  ];
-}
-
-// --- Warp card to rectangle ---
-function warpCard(pixels, srcW, srcH, corners, dstW, dstH) {
-  const dst = new Uint8Array(dstW * dstH * 4);
-  const H = computeHomography(
-    [{x:0,y:0},{x:dstW,y:0},{x:dstW,y:dstH},{x:0,y:dstH}],
-    corners
-  );
-  if (!H) return null;
-
-  for (let dy = 0; dy < dstH; dy++) {
-    for (let dx = 0; dx < dstW; dx++) {
-      const w = H[2][0]*dx + H[2][1]*dy + H[2][2];
-      const sx = (H[0][0]*dx + H[0][1]*dy + H[0][2]) / w;
-      const sy = (H[1][0]*dx + H[1][1]*dy + H[1][2]) / w;
-      const ix = Math.floor(sx), iy = Math.floor(sy);
-      if (ix < 0 || ix >= srcW-1 || iy < 0 || iy >= srcH-1) continue;
-      const fx = sx - ix, fy = sy - iy;
-      const i00 = (iy*srcW+ix)*4, i10 = i00+4, i01 = ((iy+1)*srcW+ix)*4, i11 = i01+4;
-      const di = (dy*dstW+dx)*4;
-      for (let c = 0; c < 3; c++) {
-        dst[di+c] = (
-          pixels[i00+c]*(1-fx)*(1-fy) + pixels[i10+c]*fx*(1-fy) +
-          pixels[i01+c]*(1-fx)*fy     + pixels[i11+c]*fx*fy
-        ) | 0;
-      }
-      dst[di+3] = 255;
-    }
-  }
-  return dst;
-}
-
-// --- Inner border detection ---
-function detectBorders(warped, w, h) {
+  // Use middle 60% of each edge to avoid corners
   const yStart = Math.floor(h * 0.2), yEnd = Math.floor(h * 0.8);
   const xStart = Math.floor(w * 0.2), xEnd = Math.floor(w * 0.8);
+  const maxHoriz = Math.floor(w * 0.35);
+  const maxVert = Math.floor(h * 0.35);
 
-  function avgColor(pixels, indices) {
-    let r = 0, g = 0, b = 0;
-    for (const i of indices) { r += pixels[i]; g += pixels[i+1]; b += pixels[i+2]; }
-    const n = indices.length;
-    return n ? [r/n, g/n, b/n] : [0,0,0];
-  }
-
-  function colorDist(c1, c2) {
-    return Math.sqrt((c1[0]-c2[0])**2 + (c1[1]-c2[1])**2 + (c1[2]-c2[2])**2);
-  }
-
-  function colorVariance(pixels, indices) {
-    if (indices.length < 2) return 0;
-    const avg2 = avgColor(pixels, indices);
-    let v = 0;
-    for (const i of indices) {
-      v += (pixels[i]-avg2[0])**2 + (pixels[i+1]-avg2[1])**2 + (pixels[i+2]-avg2[2])**2;
-    }
-    return Math.sqrt(v / indices.length);
-  }
-
-  function findBorder(getIndices, maxDepth) {
-    const edgeIdx = getIndices(0);
-    if (!edgeIdx.length) return 0;
-    const edgeColor = avgColor(warped, edgeIdx);
-    const edgeVar = colorVariance(warped, edgeIdx);
-
-    let borderWidth = 0;
-    const DIST_THRESH = 35;
-    const VAR_THRESH = edgeVar + 20;
-    let consecutive = 0;
-
-    for (let d = 1; d < maxDepth; d++) {
-      const idx = getIndices(d);
-      if (!idx.length) break;
-      const stripColor = avgColor(warped, idx);
-      const dist = colorDist(stripColor, edgeColor);
-      const variance = colorVariance(warped, idx);
-
-      if (dist > DIST_THRESH || variance > VAR_THRESH) {
-        consecutive++;
-        if (consecutive >= 2) { borderWidth = d - 1; break; }
-      } else {
-        consecutive = 0;
-      }
-    }
-    if (!borderWidth) borderWidth = maxDepth;
-    return borderWidth;
-  }
-
-  const leftW = findBorder((d) => {
+  const left = findBorder(pixels, (d) => {
     const idx = [];
     for (let y = yStart; y < yEnd; y += 2) idx.push((y*w+d)*4);
     return idx;
-  }, Math.floor(w * 0.35));
+  }, maxHoriz);
 
-  const rightW = findBorder((d) => {
+  const right = findBorder(pixels, (d) => {
     const idx = [];
     for (let y = yStart; y < yEnd; y += 2) idx.push((y*w+(w-1-d))*4);
     return idx;
-  }, Math.floor(w * 0.35));
+  }, maxHoriz);
 
-  const topW = findBorder((d) => {
+  const top = findBorder(pixels, (d) => {
     const idx = [];
     for (let x = xStart; x < xEnd; x += 2) idx.push((d*w+x)*4);
     return idx;
-  }, Math.floor(h * 0.35));
+  }, maxVert);
 
-  const bottomW = findBorder((d) => {
+  const bottom = findBorder(pixels, (d) => {
     const idx = [];
     for (let x = xStart; x < xEnd; x += 2) idx.push(((h-1-d)*w+x)*4);
     return idx;
-  }, Math.floor(h * 0.35));
+  }, maxVert);
 
-  return { left: leftW, right: rightW, top: topW, bottom: bottomW };
-}
+  // Validate: borders should be reasonable (not the max depth, which means
+  // the whole image was uniform — likely bad crop or no card)
+  const valid = (left < maxHoriz - 2) && (right < maxHoriz - 2) &&
+                (top < maxVert - 2) && (bottom < maxVert - 2);
 
-// ================================================================
-// CARD-SHAPED VALIDATION
-// ================================================================
-function isCardShaped(l, t, r, b, PW, PH) {
-  const cw = r - l, ch = b - t;
-  if (cw < PW * 0.08 || ch < PH * 0.08) return false;
-  const ar = cw / ch;
-  // Card is 2.5x3.5 = 0.714 portrait or 1.4 landscape
-  return ar >= 0.4 && ar <= 1.6;
-}
-
-// ================================================================
-// STRATEGY 1: Brightness-based (Otsu on grayscale)
-// Best for: card on dark/contrasting surface
-// ================================================================
-function detectByBrightness(gray, PW, PH) {
-  const thresh = otsu(gray, PW * PH);
-
-  const rowBright = new Float32Array(PH);
-  const colBright = new Float32Array(PW);
-  for (let y = 0; y < PH; y++) {
-    let cnt = 0;
-    for (let x = 0; x < PW; x++) { if (gray[y*PW+x] > thresh) cnt++; }
-    rowBright[y] = cnt / PW;
-  }
-  for (let x = 0; x < PW; x++) {
-    let cnt = 0;
-    for (let y = 0; y < PH; y++) { if (gray[y*PW+x] > thresh) cnt++; }
-    colBright[x] = cnt / PH;
-  }
-
-  // Try multiple thresholds for the projection
-  for (const T of [0.30, 0.20, 0.15, 0.10]) {
-    let top=-1, bot=-1, left=-1, right=-1;
-    for (let y = 0; y < PH; y++) { if (rowBright[y] > T) { if (top<0) top=y; bot=y; } }
-    for (let x = 0; x < PW; x++) { if (colBright[x] > T) { if (left<0) left=x; right=x; } }
-    if (top>=0 && bot>=0 && left>=0 && right>=0 && isCardShaped(left,top,right,bot,PW,PH)) {
-      return { left, top, right, bot, method: 'brightness', thresh };
-    }
-  }
-  return null;
-}
-
-// ================================================================
-// STRATEGY 2: Edge-based (Sobel + projection peaks)
-// Best for: card on similar-brightness surface
-// ================================================================
-function detectByEdges(mag, edgeThresh, PW, PH) {
-  const rowEdge = new Float32Array(PH);
-  const colEdge = new Float32Array(PW);
-  for (let y = 1; y < PH-1; y++) {
-    let cnt = 0;
-    for (let x = 1; x < PW-1; x++) { if (mag[y*PW+x] > edgeThresh) cnt++; }
-    rowEdge[y] = cnt / (PW-2);
-  }
-  for (let x = 1; x < PW-1; x++) {
-    let cnt = 0;
-    for (let y = 1; y < PH-1; y++) { if (mag[y*PW+x] > edgeThresh) cnt++; }
-    colEdge[x] = cnt / (PH-2);
-  }
-
-  for (const T of [0.12, 0.08, 0.05]) {
-    let top=-1, bot=-1, left=-1, right=-1;
-    for (let y = 0; y < PH; y++) { if (rowEdge[y] > T) { if (top<0) top=y; bot=y; } }
-    for (let x = 0; x < PW; x++) { if (colEdge[x] > T) { if (left<0) left=x; right=x; } }
-    if (top>=0 && bot>=0 && left>=0 && right>=0 && isCardShaped(left,top,right,bot,PW,PH)) {
-      return { left, top, right, bot, method: 'edges', thresh: edgeThresh };
-    }
-  }
-  return null;
-}
-
-// ================================================================
-// STRATEGY 3: Combined — use Otsu on grayscale to find bright
-// region, then refine edges with Sobel within that region
-// ================================================================
-function detectCombined(gray, mag, edgeThresh, PW, PH) {
-  // First find approximate region by brightness
-  const grayThresh = otsu(gray, PW * PH);
-
-  // Find rough bounding box of bright area
-  let minY=PH, maxY=0, minX=PW, maxX=0;
-  for (let y = 0; y < PH; y++) {
-    for (let x = 0; x < PW; x++) {
-      if (gray[y*PW+x] > grayThresh) {
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-      }
-    }
-  }
-
-  if (maxY-minY < PH*0.08 || maxX-minX < PW*0.08) return null;
-
-  // Now refine: within this region, find the strongest horizontal edges (card top/bottom)
-  // and strongest vertical edges (card left/right) using Sobel
-  const pad = 15;
-  const searchTop = Math.max(0, minY - pad);
-  const searchBot = Math.min(PH-1, maxY + pad);
-  const searchLeft = Math.max(0, minX - pad);
-  const searchRight = Math.min(PW-1, maxX + pad);
-
-  // Find rows with strongest horizontal edges in the search region
-  const rowStrength = new Float32Array(PH);
-  for (let y = searchTop; y <= searchBot; y++) {
-    let s = 0;
-    for (let x = searchLeft; x <= searchRight; x++) {
-      if (mag[y*PW+x] > edgeThresh) s++;
-    }
-    rowStrength[y] = s;
-  }
-
-  const colStrength = new Float32Array(PW);
-  for (let x = searchLeft; x <= searchRight; x++) {
-    let s = 0;
-    for (let y = searchTop; y <= searchBot; y++) {
-      if (mag[y*PW+x] > edgeThresh) s++;
-    }
-    colStrength[x] = s;
-  }
-
-  // Find top edge: first strong row in top half of region
-  const midY = (minY + maxY) / 2;
-  const midX = (minX + maxX) / 2;
-  let top = -1, bot = -1, left = -1, right = -1;
-
-  const minStrength = 3;
-  for (let y = searchTop; y < midY; y++) { if (rowStrength[y] > minStrength) { top = y; break; } }
-  for (let y = searchBot; y > midY; y--) { if (rowStrength[y] > minStrength) { bot = y; break; } }
-  for (let x = searchLeft; x < midX; x++) { if (colStrength[x] > minStrength) { left = x; break; } }
-  for (let x = searchRight; x > midX; x--) { if (colStrength[x] > minStrength) { right = x; break; } }
-
-  if (top>=0 && bot>=0 && left>=0 && right>=0 && isCardShaped(left,top,right,bot,PW,PH)) {
-    return { left, top, right, bot, method: 'combined', thresh: grayThresh };
-  }
-  return null;
-}
-
-// ================================================================
-// MAIN DETECTION PIPELINE
-// ================================================================
-self.onmessage = function(e) {
-  const { data: pixels, width: PW, height: PH } = e.data;
-
-  // 1. Grayscale
-  const gray = new Uint8Array(PW * PH);
-  for (let i = 0; i < PW * PH; i++) {
-    gray[i] = (pixels[i*4]*77 + pixels[i*4+1]*150 + pixels[i*4+2]*29) >> 8;
-  }
-
-  // 2. Blur + Sobel (needed for edge-based strategies and corner refinement)
-  const blurred = blur3x3(gray, PW, PH);
-  const { mag } = sobel(blurred, PW, PH);
-  const edgeThresh = otsu(mag, PW * PH);
-
-  // 3. Try multiple detection strategies, pick the best
-  const candidates = [
-    detectByBrightness(gray, PW, PH),
-    detectByEdges(mag, edgeThresh, PW, PH),
-    detectCombined(gray, mag, edgeThresh, PW, PH),
-  ].filter(Boolean);
-
-  if (candidates.length === 0) {
-    self.postMessage({ found: false });
-    return;
-  }
-
-  // Pick the candidate with aspect ratio closest to a standard card (0.714)
-  const IDEAL_AR = 0.714;
-  let best = candidates[0];
-  let bestScore = Infinity;
-  for (const c of candidates) {
-    const cw = c.right - c.left, ch = c.bot - c.top;
-    const ar = cw / ch;
-    const arDist = Math.abs(ar - IDEAL_AR) + Math.abs(1/ar - 1/IDEAL_AR);
-    // Prefer larger detections (card should be a significant portion of frame)
-    const sizePenalty = 1 - (cw * ch) / (PW * PH);
-    const score = arDist + sizePenalty * 0.5;
-    if (score < bestScore) { bestScore = score; best = c; }
-  }
-
-  let { left, top, right, bot } = best;
-  const cw = right - left, ch = bot - top;
-  const ar = cw / ch;
-
-  // 4. Collect edge pixels near each boundary for line fitting
-  const margin = 8;
-  const topPts = [], botPts = [], leftPts = [], rightPts = [];
-
-  for (let x = left + 5; x < right - 5; x++) {
-    for (let y = Math.max(1, top - margin); y <= Math.min(PH-2, top + margin); y++) {
-      if (mag[y*PW+x] > edgeThresh) { topPts.push({x, y}); break; }
-    }
-    for (let y = Math.min(PH-2, bot + margin); y >= Math.max(1, bot - margin); y--) {
-      if (mag[y*PW+x] > edgeThresh) { botPts.push({x, y}); break; }
-    }
-  }
-  for (let y = top + 5; y < bot - 5; y++) {
-    for (let x = Math.max(1, left - margin); x <= Math.min(PW-2, left + margin); x++) {
-      if (mag[y*PW+x] > edgeThresh) { leftPts.push({x, y}); break; }
-    }
-    for (let x = Math.min(PW-2, right + margin); x >= Math.max(1, right - margin); x--) {
-      if (mag[y*PW+x] > edgeThresh) { rightPts.push({x, y}); break; }
-    }
-  }
-
-  // 5. Fit lines + find corners
-  const topLine = fitLineBest(topPts);
-  const botLine = fitLineBest(botPts);
-  const leftLine = fitLineBest(leftPts);
-  const rightLine = fitLineBest(rightPts);
-
-  let corners = null;
-  let borders = null;
-
-  if (topLine && botLine && leftLine && rightLine) {
-    const tl = intersectLines(topLine, leftLine);
-    const tr = intersectLines(topLine, rightLine);
-    const br = intersectLines(botLine, rightLine);
-    const bl = intersectLines(botLine, leftLine);
-
-    if (tl && tr && br && bl) {
-      const allInBounds = [tl,tr,br,bl].every(p =>
-        p.x >= -15 && p.x <= PW+15 && p.y >= -15 && p.y <= PH+15
-      );
-      if (allInBounds) {
-        corners = [tl, tr, br, bl];
-
-        // 6. Perspective warp + inner border detection
-        const WARP_W = 100, WARP_H = 140;
-        const warped = warpCard(pixels, PW, PH, corners, WARP_W, WARP_H);
-        if (warped) {
-          borders = detectBorders(warped, WARP_W, WARP_H);
-        }
-      }
-    }
-  }
-
-  const result = {
-    found: true,
-    left: left / PW, top: top / PH,
-    width: cw / PW, height: ch / PH,
-    ar,
-    method: best.method,
-    threshold: best.thresh,
-  };
-
-  if (corners) {
-    result.corners = corners.map(p => ({ x: p.x / PW, y: p.y / PH }));
-  }
-  if (borders) {
-    result.borders = borders;
-    result.borderMode = true;
-  }
-
-  self.postMessage(result);
+  self.postMessage({ left, right, top, bottom, valid });
 };
 `;
 
-// ================================================================
-// INIT WORKER
-// ================================================================
 const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
 const worker = new Worker(URL.createObjectURL(workerBlob));
 
 // ================================================================
-// STATE MACHINE
+// STATE
 // ================================================================
-let appState = 'START'; // START | CAMERA | ANALYZING | RESULTS
+let appState = 'START';
 let facingMode = 'environment';
 let currentStream = null;
 let torchOn = false;
-let capturedImageData = null; // ImageData from the captured frame
-let capturedPhotoCanvas = null; // canvas with the original captured photo
+let croppedCardCanvas = null; // the cropped card image
 let analysisResult = null;
 
-// Processing resolution (higher than before for single-shot analysis)
-const PW = 480, PH = 360;
+// Analysis resolution for the cropped card
+const AW = 300, AH = 420;
 
 // ================================================================
 // DOM REFS
@@ -870,7 +470,7 @@ const PW = 480, PH = 360;
 const video = document.getElementById('video');
 const proc = document.getElementById('proc');
 const pctx = proc.getContext('2d', { willReadFrequently: true });
-proc.width = PW; proc.height = PH;
+proc.width = AW; proc.height = AH;
 
 const guideOverlay = document.getElementById('guide-overlay');
 const guideCtx = guideOverlay.getContext('2d');
@@ -882,6 +482,71 @@ const resultCanvas = document.getElementById('result-canvas');
 const resultCtx = resultCanvas.getContext('2d');
 
 // ================================================================
+// GUIDE FRAME GEOMETRY
+// Returns the guide rect in CSS pixels relative to cam-wrap
+// ================================================================
+function getGuideRect(containerW, containerH) {
+  const cardAR = 2.5 / 3.5; // ~0.714
+  let gw, gh;
+  if (containerW / containerH < cardAR) {
+    gw = containerW * 0.7;
+    gh = gw / cardAR;
+  } else {
+    gh = containerH * 0.7;
+    gw = gh * cardAR;
+  }
+  const gx = (containerW - gw) / 2;
+  const gy = (containerH - gh) / 2;
+  return { x: gx, y: gy, w: gw, h: gh };
+}
+
+// ================================================================
+// MAP GUIDE RECT TO VIDEO COORDINATES (object-fit:cover)
+// The video uses object-fit:cover so it may be cropped.
+// We need to figure out how the displayed pixels map to the
+// actual video frame pixels.
+// ================================================================
+function guideToVideoCoords(guide, containerW, containerH, videoW, videoH) {
+  // object-fit:cover: the video is scaled to fill the container,
+  // then centered and the overflow is cropped
+  const containerAR = containerW / containerH;
+  const videoAR = videoW / videoH;
+
+  let drawW, drawH, offsetX, offsetY;
+
+  if (videoAR > containerAR) {
+    // Video is wider than container — cropped on left/right
+    drawH = containerH;
+    drawW = containerH * videoAR;
+    offsetX = (drawW - containerW) / 2;
+    offsetY = 0;
+  } else {
+    // Video is taller than container — cropped on top/bottom
+    drawW = containerW;
+    drawH = containerW / videoAR;
+    offsetX = 0;
+    offsetY = (drawH - containerH) / 2;
+  }
+
+  // Scale factor from drawn-size to actual video pixels
+  const scaleX = videoW / drawW;
+  const scaleY = videoH / drawH;
+
+  // The guide rect in displayed coords needs offset adjustment
+  const vx = (guide.x + offsetX) * scaleX;
+  const vy = (guide.y + offsetY) * scaleY;
+  const vw = guide.w * scaleX;
+  const vh = guide.h * scaleY;
+
+  return {
+    x: Math.max(0, Math.round(vx)),
+    y: Math.max(0, Math.round(vy)),
+    w: Math.min(videoW - Math.max(0, Math.round(vx)), Math.round(vw)),
+    h: Math.min(videoH - Math.max(0, Math.round(vy)), Math.round(vh))
+  };
+}
+
+// ================================================================
 // SCREEN TRANSITIONS
 // ================================================================
 function switchScreen(name) {
@@ -889,7 +554,6 @@ function switchScreen(name) {
   const target = document.getElementById('screen-' + name.toLowerCase());
   if (target) {
     target.classList.add('active');
-    // Add fade-in class
     target.classList.remove('fade-in');
     void target.offsetWidth;
     target.classList.add('fade-in');
@@ -898,7 +562,7 @@ function switchScreen(name) {
 }
 
 // ================================================================
-// START SCREEN HANDLERS
+// START SCREEN
 // ================================================================
 document.getElementById('start-camera-btn').addEventListener('click', async () => {
   switchScreen('CAMERA');
@@ -924,7 +588,6 @@ async function startCamera() {
     video.srcObject = stream;
     resizeGuideOverlay();
     requestAnimationFrame(drawGuide);
-    // Check torch capability
     const track = stream.getVideoTracks()[0];
     const caps = track.getCapabilities ? track.getCapabilities() : {};
     document.getElementById('torch-btn').style.display = caps.torch ? '' : 'none';
@@ -952,132 +615,332 @@ window.addEventListener('resize', () => {
 });
 
 // ================================================================
-// CAMERA GUIDE OVERLAY — dashed card outline, no detection
+// CAMERA GUIDE OVERLAY — dark mask with card cutout
 // ================================================================
 function drawGuide() {
   if (appState !== 'CAMERA') return;
   requestAnimationFrame(drawGuide);
 
   const W = guideOverlay.width, H = guideOverlay.height;
+  if (!W || !H) return;
   guideCtx.clearRect(0, 0, W, H);
 
-  // Card guide rectangle (standard card aspect ratio ~2.5x3.5 = 0.714)
-  const cardAR = 0.714;
-  let gw, gh;
-  if (W / H < cardAR) {
-    gw = W * 0.7;
-    gh = gw / cardAR;
-  } else {
-    gh = H * 0.7;
-    gw = gh * cardAR;
-  }
-  const gx = (W - gw) / 2;
-  const gy = (H - gh) / 2;
-  const r = Math.min(gw, gh) * 0.04;
+  const guide = getGuideRect(W, H);
+  const r = Math.min(guide.w, guide.h) * 0.04;
 
-  // Dashed card outline
-  guideCtx.strokeStyle = 'rgba(255,255,255,0.25)';
+  // Dark overlay with cutout
+  guideCtx.fillStyle = 'rgba(0,0,0,0.55)';
+  guideCtx.beginPath();
+  guideCtx.rect(0, 0, W, H);
+  // Cut out the guide region (counter-clockwise for evenodd)
+  roundRectPath(guideCtx, guide.x, guide.y, guide.w, guide.h, r, true);
+  guideCtx.fill('evenodd');
+
+  // Guide border
+  guideCtx.strokeStyle = 'rgba(255,255,255,0.3)';
   guideCtx.lineWidth = 1.5;
-  guideCtx.setLineDash([10, 8]);
-  roundRect(guideCtx, gx, gy, gw, gh, r);
+  roundRectPath(guideCtx, guide.x, guide.y, guide.w, guide.h, r);
   guideCtx.stroke();
-  guideCtx.setLineDash([]);
 
-  // Corner brackets (brighter)
-  const bLen = Math.min(28, gw * 0.1);
-  guideCtx.strokeStyle = 'rgba(255,255,255,0.45)';
+  // Corner brackets
+  const bLen = Math.min(28, guide.w * 0.1);
+  guideCtx.strokeStyle = 'rgba(255,255,255,0.6)';
   guideCtx.lineWidth = 2.5;
   guideCtx.lineCap = 'round';
-  [[gx, gy, 1, 1], [gx + gw, gy, -1, 1], [gx, gy + gh, 1, -1], [gx + gw, gy + gh, -1, -1]].forEach(([px, py, dx, dy]) => {
+  const corners = [
+    [guide.x, guide.y, 1, 1],
+    [guide.x + guide.w, guide.y, -1, 1],
+    [guide.x, guide.y + guide.h, 1, -1],
+    [guide.x + guide.w, guide.y + guide.h, -1, -1]
+  ];
+  corners.forEach(([px, py, dx, dy]) => {
     guideCtx.beginPath(); guideCtx.moveTo(px, py); guideCtx.lineTo(px + dx * bLen, py); guideCtx.stroke();
     guideCtx.beginPath(); guideCtx.moveTo(px, py); guideCtx.lineTo(px, py + dy * bLen); guideCtx.stroke();
   });
   guideCtx.lineCap = 'butt';
 
   // Instruction text
-  guideCtx.fillStyle = 'rgba(255,255,255,0.35)';
+  guideCtx.fillStyle = 'rgba(255,255,255,0.5)';
   guideCtx.font = '500 12px "Inter",system-ui,sans-serif';
   guideCtx.textAlign = 'center';
-  guideCtx.fillText('Position card in frame', W / 2, gy - 12);
+  guideCtx.fillText('Position card within frame', W / 2, guide.y - 14);
 }
 
 // ================================================================
-// CAPTURE — grab frame from video at full resolution
+// CAPTURE — crop the guide region from the video
 // ================================================================
 function captureFrame() {
   if (video.readyState < 2) return;
-  // Haptic feedback
   if (navigator.vibrate) navigator.vibrate(40);
 
-  // Get video native resolution
   const vw = video.videoWidth || 640;
   const vh = video.videoHeight || 480;
+  const wrap = document.getElementById('cam-wrap');
+  const cW = wrap.clientWidth;
+  const cH = wrap.clientHeight;
 
-  // Create a full-res canvas with the captured photo
-  capturedPhotoCanvas = document.createElement('canvas');
-  capturedPhotoCanvas.width = vw;
-  capturedPhotoCanvas.height = vh;
-  const cctx = capturedPhotoCanvas.getContext('2d');
-  cctx.drawImage(video, 0, 0, vw, vh);
+  // Get guide rect in CSS coords
+  const guide = getGuideRect(cW, cH);
+  // Map to video coords
+  const vc = guideToVideoCoords(guide, cW, cH, vw, vh);
 
-  // Show frozen frame on analyzing screen
+  // Draw full video frame for frozen preview
   frozenFrame.width = vw;
   frozenFrame.height = vh;
-  frozenCtx.drawImage(capturedPhotoCanvas, 0, 0);
+  frozenCtx.drawImage(video, 0, 0, vw, vh);
 
-  // Switch to analyzing state
   switchScreen('ANALYZING');
 
-  // Draw into processing canvas at detection resolution
-  pctx.drawImage(capturedPhotoCanvas, 0, 0, PW, PH);
-  const imgData = pctx.getImageData(0, 0, PW, PH);
-  capturedImageData = imgData;
+  // Crop the guide region at full resolution
+  croppedCardCanvas = document.createElement('canvas');
+  croppedCardCanvas.width = vc.w;
+  croppedCardCanvas.height = vc.h;
+  const cctx = croppedCardCanvas.getContext('2d');
+  cctx.drawImage(video, vc.x, vc.y, vc.w, vc.h, 0, 0, vc.w, vc.h);
 
-  // Send to worker
-  worker.postMessage({ data: imgData.data, width: PW, height: PH });
+  // Downscale to analysis resolution and send to worker
+  pctx.clearRect(0, 0, AW, AH);
+  pctx.drawImage(croppedCardCanvas, 0, 0, AW, AH);
+  const imgData = pctx.getImageData(0, 0, AW, AH);
+  worker.postMessage({ data: imgData.data, width: AW, height: AH });
 }
 
 // ================================================================
-// FILE UPLOAD — analyze an existing photo
+// FILE UPLOAD — show crop/position screen
 // ================================================================
 function handleFileUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
-  e.target.value = ''; // reset so same file can be re-selected
+  e.target.value = '';
 
   const img = new Image();
   img.onload = () => {
-    const vw = img.naturalWidth;
-    const vh = img.naturalHeight;
-
-    capturedPhotoCanvas = document.createElement('canvas');
-    capturedPhotoCanvas.width = vw;
-    capturedPhotoCanvas.height = vh;
-    const cctx = capturedPhotoCanvas.getContext('2d');
-    cctx.drawImage(img, 0, 0, vw, vh);
-
-    frozenFrame.width = vw;
-    frozenFrame.height = vh;
-    frozenCtx.drawImage(capturedPhotoCanvas, 0, 0);
-
-    switchScreen('ANALYZING');
-
-    pctx.drawImage(capturedPhotoCanvas, 0, 0, PW, PH);
-    const imgData = pctx.getImageData(0, 0, PW, PH);
-    capturedImageData = imgData;
-
-    worker.postMessage({ data: imgData.data, width: PW, height: PH });
+    showUploadCropScreen(img);
   };
   img.src = URL.createObjectURL(file);
 }
 
 // ================================================================
-// WORKER RESPONSE — show results
+// UPLOAD CROP SCREEN — drag & pinch to position card in guide
+// ================================================================
+let uploadImg = null;
+let uploadImgNatW = 0, uploadImgNatH = 0;
+let uploadScale = 1, uploadMinScale = 0.1;
+let uploadOffX = 0, uploadOffY = 0;
+let uploadTouchState = null;
+
+function showUploadCropScreen(img) {
+  uploadImg = img;
+  uploadImgNatW = img.naturalWidth;
+  uploadImgNatH = img.naturalHeight;
+
+  switchScreen('UPLOAD-CROP');
+
+  const el = document.getElementById('upload-img');
+  el.src = img.src;
+
+  // Wait a frame for layout
+  requestAnimationFrame(() => {
+    const wrap = document.getElementById('upload-crop-wrap');
+    const wW = wrap.clientWidth, wH = wrap.clientHeight;
+    const guide = getGuideRect(wW, wH);
+
+    // Size the upload guide overlay
+    const ov = document.getElementById('upload-guide-overlay');
+    ov.width = wW;
+    ov.height = wH;
+
+    // Fit image so it fills the guide
+    const scaleToFillW = guide.w / uploadImgNatW;
+    const scaleToFillH = guide.h / uploadImgNatH;
+    uploadScale = Math.max(scaleToFillW, scaleToFillH);
+    uploadMinScale = Math.min(scaleToFillW, scaleToFillH) * 0.5;
+
+    // Center image on guide center
+    uploadOffX = (wW / 2) - (uploadImgNatW * uploadScale / 2);
+    uploadOffY = (wH / 2) - (uploadImgNatH * uploadScale / 2);
+
+    applyUploadTransform();
+    drawUploadGuide();
+  });
+}
+
+function applyUploadTransform() {
+  const el = document.getElementById('upload-img');
+  el.style.width = uploadImgNatW + 'px';
+  el.style.height = uploadImgNatH + 'px';
+  el.style.transform = `translate(${uploadOffX}px, ${uploadOffY}px) scale(${uploadScale})`;
+}
+
+function drawUploadGuide() {
+  const ov = document.getElementById('upload-guide-overlay');
+  const ctx = ov.getContext('2d');
+  const W = ov.width, H = ov.height;
+  if (!W || !H) return;
+  ctx.clearRect(0, 0, W, H);
+
+  const guide = getGuideRect(W, H);
+  const r = Math.min(guide.w, guide.h) * 0.04;
+
+  // Dark overlay with cutout
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.beginPath();
+  ctx.rect(0, 0, W, H);
+  roundRectPath(ctx, guide.x, guide.y, guide.w, guide.h, r, true);
+  ctx.fill('evenodd');
+
+  // Guide border
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1.5;
+  roundRectPath(ctx, guide.x, guide.y, guide.w, guide.h, r);
+  ctx.stroke();
+
+  // Corner brackets
+  const bLen = Math.min(28, guide.w * 0.1);
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  [
+    [guide.x, guide.y, 1, 1],
+    [guide.x + guide.w, guide.y, -1, 1],
+    [guide.x, guide.y + guide.h, 1, -1],
+    [guide.x + guide.w, guide.y + guide.h, -1, -1]
+  ].forEach(([px, py, dx, dy]) => {
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + dx * bLen, py); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px, py + dy * bLen); ctx.stroke();
+  });
+  ctx.lineCap = 'butt';
+}
+
+// Touch/mouse handlers for upload crop
+(function setupUploadTouch() {
+  const wrap = document.getElementById('upload-crop-wrap');
+
+  wrap.addEventListener('pointerdown', (e) => {
+    if (appState !== 'UPLOAD-CROP') return;
+    e.preventDefault();
+    wrap.setPointerCapture(e.pointerId);
+    uploadTouchState = { id: e.pointerId, startX: e.clientX, startY: e.clientY, startOffX: uploadOffX, startOffY: uploadOffY };
+  });
+
+  wrap.addEventListener('pointermove', (e) => {
+    if (!uploadTouchState || uploadTouchState.id !== e.pointerId) return;
+    e.preventDefault();
+    uploadOffX = uploadTouchState.startOffX + (e.clientX - uploadTouchState.startX);
+    uploadOffY = uploadTouchState.startOffY + (e.clientY - uploadTouchState.startY);
+    applyUploadTransform();
+  });
+
+  wrap.addEventListener('pointerup', (e) => {
+    if (uploadTouchState && uploadTouchState.id === e.pointerId) uploadTouchState = null;
+  });
+  wrap.addEventListener('pointercancel', (e) => {
+    if (uploadTouchState && uploadTouchState.id === e.pointerId) uploadTouchState = null;
+  });
+
+  // Pinch zoom via touch events
+  let pinchDist = null, pinchScale = 1;
+  wrap.addEventListener('touchstart', (e) => {
+    if (appState !== 'UPLOAD-CROP') return;
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchDist = Math.hypot(dx, dy);
+      pinchScale = uploadScale;
+    }
+  }, { passive: true });
+
+  wrap.addEventListener('touchmove', (e) => {
+    if (appState !== 'UPLOAD-CROP') return;
+    if (e.touches.length === 2 && pinchDist) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const ratio = dist / pinchDist;
+      const newScale = Math.max(uploadMinScale, Math.min(pinchScale * ratio, 10));
+
+      // Zoom around center of pinch
+      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const imgCx = (cx - uploadOffX) / uploadScale;
+      const imgCy = (cy - uploadOffY) / uploadScale;
+      uploadScale = newScale;
+      uploadOffX = cx - imgCx * uploadScale;
+      uploadOffY = cy - imgCy * uploadScale;
+
+      applyUploadTransform();
+    }
+  }, { passive: true });
+
+  wrap.addEventListener('touchend', () => { pinchDist = null; }, { passive: true });
+
+  // Mouse wheel zoom
+  wrap.addEventListener('wheel', (e) => {
+    if (appState !== 'UPLOAD-CROP') return;
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.08 : 0.93;
+    const newScale = Math.max(uploadMinScale, Math.min(uploadScale * factor, 10));
+    const rect = wrap.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const imgCx = (cx - uploadOffX) / uploadScale;
+    const imgCy = (cy - uploadOffY) / uploadScale;
+    uploadScale = newScale;
+    uploadOffX = cx - imgCx * uploadScale;
+    uploadOffY = cy - imgCy * uploadScale;
+    applyUploadTransform();
+  }, { passive: false });
+})();
+
+// Upload crop: cancel
+document.getElementById('upload-cancel-btn').addEventListener('click', () => {
+  switchScreen('START');
+});
+
+// Upload crop: analyze
+document.getElementById('upload-analyze-btn').addEventListener('click', () => {
+  if (!uploadImg) return;
+
+  const wrap = document.getElementById('upload-crop-wrap');
+  const wW = wrap.clientWidth, wH = wrap.clientHeight;
+  const guide = getGuideRect(wW, wH);
+
+  // The guide rect in CSS pixels. The image is at uploadOffX/Y, scaled by uploadScale.
+  // Map guide coords back to image pixel coords.
+  const imgX = (guide.x - uploadOffX) / uploadScale;
+  const imgY = (guide.y - uploadOffY) / uploadScale;
+  const imgW = guide.w / uploadScale;
+  const imgH = guide.h / uploadScale;
+
+  // Show frozen frame (use uploaded image drawn onto the frozen canvas)
+  frozenFrame.width = uploadImgNatW;
+  frozenFrame.height = uploadImgNatH;
+  frozenCtx.drawImage(uploadImg, 0, 0);
+
+  switchScreen('ANALYZING');
+
+  // Crop the guide region from the original image
+  croppedCardCanvas = document.createElement('canvas');
+  const cropW = Math.round(Math.min(imgW, uploadImgNatW - Math.max(0, imgX)));
+  const cropH = Math.round(Math.min(imgH, uploadImgNatH - Math.max(0, imgY)));
+  croppedCardCanvas.width = Math.max(1, cropW);
+  croppedCardCanvas.height = Math.max(1, cropH);
+  const cctx = croppedCardCanvas.getContext('2d');
+  cctx.drawImage(uploadImg, Math.max(0, imgX), Math.max(0, imgY), cropW, cropH, 0, 0, cropW, cropH);
+
+  // Downscale and analyze
+  pctx.clearRect(0, 0, AW, AH);
+  pctx.drawImage(croppedCardCanvas, 0, 0, AW, AH);
+  const imgData = pctx.getImageData(0, 0, AW, AH);
+  worker.postMessage({ data: imgData.data, width: AW, height: AH });
+});
+
+// ================================================================
+// WORKER RESPONSE
 // ================================================================
 worker.onmessage = function(e) {
   analysisResult = e.data;
-
-  if (!analysisResult.found) {
+  if (!analysisResult.valid) {
     showResultsFailed();
   } else {
     showResultsSuccess(analysisResult);
@@ -1090,13 +953,13 @@ worker.onmessage = function(e) {
 function showResultsFailed() {
   switchScreen('RESULTS');
 
-  // Show the captured photo dimmed behind the failure message
-  const photo = capturedPhotoCanvas;
-  resultCanvas.width = photo.width;
-  resultCanvas.height = photo.height;
-  resultCtx.drawImage(photo, 0, 0);
-  resultCtx.fillStyle = 'rgba(0,0,0,0.7)';
-  resultCtx.fillRect(0, 0, photo.width, photo.height);
+  if (croppedCardCanvas) {
+    resultCanvas.width = croppedCardCanvas.width;
+    resultCanvas.height = croppedCardCanvas.height;
+    resultCtx.drawImage(croppedCardCanvas, 0, 0);
+    resultCtx.fillStyle = 'rgba(0,0,0,0.7)';
+    resultCtx.fillRect(0, 0, croppedCardCanvas.width, croppedCardCanvas.height);
+  }
 
   document.getElementById('result-grade-badge').style.display = 'none';
   document.getElementById('result-failed').style.display = 'flex';
@@ -1113,130 +976,64 @@ function showResultsSuccess(res) {
   document.getElementById('result-failed').style.display = 'none';
   document.getElementById('results-failed-actions').style.display = 'none';
 
-  const photo = capturedPhotoCanvas;
-  const W = photo.width, H = photo.height;
+  const card = croppedCardCanvas;
+  const W = card.width, H = card.height;
 
-  // Draw result canvas: photo + overlay
+  // Draw the cropped card
   resultCanvas.width = W;
   resultCanvas.height = H;
-  resultCtx.drawImage(photo, 0, 0);
+  resultCtx.drawImage(card, 0, 0);
 
-  // Compute card rect in photo coords
-  const cardX = res.left * W;
-  const cardY = res.top * H;
-  const cardW = res.width * W;
-  const cardH = res.height * H;
+  // Border widths from analysis (at 300x420) mapped to card canvas
+  const scaleX = W / AW;
+  const scaleY = H / AH;
+  const bL = res.left * scaleX;
+  const bR = res.right * scaleX;
+  const bT = res.top * scaleY;
+  const bB = res.bottom * scaleY;
 
-  // Compute grade
-  const borderMode = res.borderMode && res.borders;
-  let lrR, tbR, lrPct, tbPct, barLeftPct, barTopPct;
-
-  if (borderMode) {
-    const b = res.borders;
-    lrR = Math.min(b.left, b.right) > 0 ? Math.max(b.left, b.right) / Math.min(b.left, b.right) : 99;
-    tbR = Math.min(b.top, b.bottom) > 0 ? Math.max(b.top, b.bottom) / Math.min(b.top, b.bottom) : 99;
-    const lrT = b.left + b.right, tbT = b.top + b.bottom;
-    lrPct = lrT ? Math.round(b.left / lrT * 100) + '/' + Math.round(b.right / lrT * 100) : '--';
-    tbPct = tbT ? Math.round(b.top / tbT * 100) + '/' + Math.round(b.bottom / tbT * 100) : '--';
-    barLeftPct = lrT ? (b.left / lrT * 100) : 50;
-    barTopPct = tbT ? (b.top / tbT * 100) : 50;
-  } else {
-    const lB = cardX, rB = W - (cardX + cardW), tB = cardY, bB = H - (cardY + cardH);
-    lrR = Math.min(lB, rB) > 2 ? Math.max(lB, rB) / Math.min(lB, rB) : 99;
-    tbR = Math.min(tB, bB) > 2 ? Math.max(tB, bB) / Math.min(tB, bB) : 99;
-    const lrT = lB + rB, tbT = tB + bB;
-    lrPct = lrT ? Math.round(lB / lrT * 100) + '/' + Math.round(rB / lrT * 100) : '--';
-    tbPct = tbT ? Math.round(tB / tbT * 100) + '/' + Math.round(bB / tbT * 100) : '--';
-    barLeftPct = lrT ? (lB / lrT * 100) : 50;
-    barTopPct = tbT ? (tB / tbT * 100) : 50;
-  }
+  // Compute centering ratios
+  const lrR = Math.min(bL, bR) > 0 ? Math.max(bL, bR) / Math.min(bL, bR) : 99;
+  const tbR = Math.min(bT, bB) > 0 ? Math.max(bT, bB) / Math.min(bT, bB) : 99;
+  const lrT = bL + bR, tbT = bT + bB;
+  const lrPct = lrT ? Math.round(bL / lrT * 100) + '/' + Math.round(bR / lrT * 100) : '--';
+  const tbPct = tbT ? Math.round(bT / tbT * 100) + '/' + Math.round(bB / tbT * 100) : '--';
+  const barLeftPct = lrT ? (bL / lrT * 100) : 50;
+  const barTopPct = tbT ? (bT / tbT * 100) : 50;
 
   const worst = Math.max(lrR, tbR);
   let grade, gradeColor, gradeDesc;
-  if (worst <= 1.22) { grade = '10'; gradeColor = '#34d399'; gradeDesc = 'Gem Mint centering'; }
-  else if (worst <= 1.50) { grade = '9'; gradeColor = '#a3e635'; gradeDesc = 'Strong PSA 9'; }
-  else if (worst <= 1.86) { grade = '8'; gradeColor = '#fbbf24'; gradeDesc = 'Likely PSA 8'; }
-  else if (worst <= 2.33) { grade = '7'; gradeColor = '#fb923c'; gradeDesc = 'PSA 7 range'; }
-  else { grade = '6\u2193'; gradeColor = '#f87171'; gradeDesc = 'Off-center'; }
+  if (worst <= 1.22)      { grade = '10'; gradeColor = '#34d399'; gradeDesc = 'Gem Mint centering'; }
+  else if (worst <= 1.50) { grade = '9';  gradeColor = '#a3e635'; gradeDesc = 'Strong PSA 9'; }
+  else if (worst <= 1.86) { grade = '8';  gradeColor = '#fbbf24'; gradeDesc = 'Likely PSA 8'; }
+  else if (worst <= 2.33) { grade = '7';  gradeColor = '#fb923c'; gradeDesc = 'PSA 7 range'; }
+  else                    { grade = '6\u2193'; gradeColor = '#f87171'; gradeDesc = 'Off-center'; }
 
-  // --- Draw overlay on result canvas ---
+  // --- Draw overlay ---
   const c = resultCtx;
-  const scale = Math.max(W, H) / 800; // scale line widths for high-res photos
-
-  // Dim outside card
-  const dimR = Math.min(cardW, cardH) * 0.035;
-  c.globalAlpha = 0.45;
-  c.fillStyle = '#000';
-  c.beginPath();
-  c.rect(0, 0, W, H);
-  c.moveTo(cardX + dimR, cardY);
-  c.arcTo(cardX, cardY, cardX, cardY + dimR, dimR);
-  c.lineTo(cardX, cardY + cardH - dimR);
-  c.arcTo(cardX, cardY + cardH, cardX + dimR, cardY + cardH, dimR);
-  c.lineTo(cardX + cardW - dimR, cardY + cardH);
-  c.arcTo(cardX + cardW, cardY + cardH, cardX + cardW, cardY + cardH - dimR, dimR);
-  c.lineTo(cardX + cardW, cardY + dimR);
-  c.arcTo(cardX + cardW, cardY, cardX + cardW - dimR, cardY, dimR);
-  c.closePath();
-  c.fill('evenodd');
-  c.globalAlpha = 1;
-
-  // Card outline with glow
-  const cardR = Math.min(cardW, cardH) * 0.035;
-  c.strokeStyle = gradeColor;
-  c.lineWidth = Math.max(2, 3 * scale);
-  c.shadowColor = gradeColor;
-  c.shadowBlur = 20 * scale;
-  roundRect(c, cardX, cardY, cardW, cardH, cardR);
-  c.stroke();
-  c.shadowBlur = 0;
-
-  // Corner dots
-  if (res.corners) {
-    c.fillStyle = '#fff';
-    res.corners.forEach(corner => {
-      const cx = corner.x * W, cy = corner.y * H;
-      c.beginPath();
-      c.arc(cx, cy, Math.max(3, 4 * scale), 0, Math.PI * 2);
-      c.fill();
-    });
-  }
-
-  // Corner brackets
-  const bLen = Math.min(40, cardW * 0.08, cardH * 0.06) * Math.max(1, scale);
-  c.strokeStyle = 'rgba(255,255,255,0.85)';
-  c.lineWidth = Math.max(2, 3 * scale);
-  c.lineCap = 'round';
-  [[cardX, cardY, 1, 1], [cardX + cardW, cardY, -1, 1], [cardX, cardY + cardH, 1, -1], [cardX + cardW, cardY + cardH, -1, -1]].forEach(([px, py, dx, dy]) => {
-    c.beginPath(); c.moveTo(px, py); c.lineTo(px + dx * bLen, py); c.stroke();
-    c.beginPath(); c.moveTo(px, py); c.lineTo(px, py + dy * bLen); c.stroke();
-  });
-  c.lineCap = 'butt';
+  const scale = Math.max(W, H) / 600;
 
   // Inner border lines (dashed green)
-  if (borderMode && res.borders) {
-    const b = res.borders;
-    const scaleX = cardW / 100, scaleY = cardH / 140;
-    c.strokeStyle = 'rgba(52,211,153,0.5)';
-    c.lineWidth = Math.max(1, 2 * scale);
-    c.setLineDash([6 * scale, 8 * scale]);
-    const liX = cardX + b.left * scaleX;
-    c.beginPath(); c.moveTo(liX, cardY + 12 * scale); c.lineTo(liX, cardY + cardH - 12 * scale); c.stroke();
-    const riX = cardX + cardW - b.right * scaleX;
-    c.beginPath(); c.moveTo(riX, cardY + 12 * scale); c.lineTo(riX, cardY + cardH - 12 * scale); c.stroke();
-    const tiY = cardY + b.top * scaleY;
-    c.beginPath(); c.moveTo(cardX + 12 * scale, tiY); c.lineTo(cardX + cardW - 12 * scale, tiY); c.stroke();
-    const biY = cardY + cardH - b.bottom * scaleY;
-    c.beginPath(); c.moveTo(cardX + 12 * scale, biY); c.lineTo(cardX + cardW - 12 * scale, biY); c.stroke();
-    c.setLineDash([]);
-  }
+  c.strokeStyle = 'rgba(52,211,153,0.6)';
+  c.lineWidth = Math.max(1, 2 * scale);
+  c.setLineDash([6 * scale, 8 * scale]);
+
+  // Left inner border line
+  c.beginPath(); c.moveTo(bL, 12 * scale); c.lineTo(bL, H - 12 * scale); c.stroke();
+  // Right inner border line
+  c.beginPath(); c.moveTo(W - bR, 12 * scale); c.lineTo(W - bR, H - 12 * scale); c.stroke();
+  // Top inner border line
+  c.beginPath(); c.moveTo(12 * scale, bT); c.lineTo(W - 12 * scale, bT); c.stroke();
+  // Bottom inner border line
+  c.beginPath(); c.moveTo(12 * scale, H - bB); c.lineTo(W - 12 * scale, H - bB); c.stroke();
+  c.setLineDash([]);
 
   // Center crosshair
-  c.strokeStyle = 'rgba(255,255,255,0.1)';
+  c.strokeStyle = 'rgba(255,255,255,0.08)';
   c.setLineDash([5 * scale, 10 * scale]);
   c.lineWidth = Math.max(1, 1.5 * scale);
-  c.beginPath(); c.moveTo(cardX + cardW / 2, cardY + 14 * scale); c.lineTo(cardX + cardW / 2, cardY + cardH - 14 * scale); c.stroke();
-  c.beginPath(); c.moveTo(cardX + 14 * scale, cardY + cardH / 2); c.lineTo(cardX + cardW - 14 * scale, cardY + cardH / 2); c.stroke();
+  c.beginPath(); c.moveTo(W / 2, 14 * scale); c.lineTo(W / 2, H - 14 * scale); c.stroke();
+  c.beginPath(); c.moveTo(14 * scale, H / 2); c.lineTo(W - 14 * scale, H / 2); c.stroke();
   c.setLineDash([]);
 
   // Border width labels
@@ -1245,22 +1042,40 @@ function showResultsSuccess(res) {
   c.textAlign = 'center';
   c.textBaseline = 'middle';
 
-  if (borderMode && res.borders) {
-    const b = res.borders;
-    const lblOffset = Math.max(20, 30 * scale);
-    drawLabelHiRes(c, '' + b.left, cardX - lblOffset, cardY + cardH / 2, '#fb923c', scale);
-    drawLabelHiRes(c, '' + b.right, cardX + cardW + lblOffset, cardY + cardH / 2, '#fb923c', scale);
-    drawLabelHiRes(c, '' + b.top, cardX + cardW / 2, Math.max(fontSize, cardY - lblOffset * 0.7), '#38bdf8', scale);
-    drawLabelHiRes(c, '' + b.bottom, cardX + cardW / 2, Math.min(H - fontSize, cardY + cardH + lblOffset * 0.7), '#38bdf8', scale);
-  }
+  const lblOffset = Math.max(20, 24 * scale);
+  drawLabel(c, '' + res.left, bL / 2, H / 2, '#fb923c', scale);
+  drawLabel(c, '' + res.right, W - bR / 2, H / 2, '#fb923c', scale);
+  drawLabel(c, '' + res.top, W / 2, bT / 2, '#38bdf8', scale);
+  drawLabel(c, '' + res.bottom, W / 2, H - bB / 2, '#38bdf8', scale);
 
   c.textBaseline = 'alphabetic';
 
+  // Card outline with grade color glow
+  const cardR = Math.min(W, H) * 0.025;
+  c.strokeStyle = gradeColor;
+  c.lineWidth = Math.max(2, 3 * scale);
+  c.shadowColor = gradeColor;
+  c.shadowBlur = 16 * scale;
+  roundRectPath(c, 0, 0, W, H, cardR);
+  c.stroke();
+  c.shadowBlur = 0;
+
+  // Corner brackets
+  const bLen = Math.min(40, W * 0.08, H * 0.06) * Math.max(1, scale);
+  c.strokeStyle = 'rgba(255,255,255,0.85)';
+  c.lineWidth = Math.max(2, 3 * scale);
+  c.lineCap = 'round';
+  [[0, 0, 1, 1], [W, 0, -1, 1], [0, H, 1, -1], [W, H, -1, -1]].forEach(([px, py, dx, dy]) => {
+    c.beginPath(); c.moveTo(px, py); c.lineTo(px + dx * bLen, py); c.stroke();
+    c.beginPath(); c.moveTo(px, py); c.lineTo(px, py + dy * bLen); c.stroke();
+  });
+  c.lineCap = 'butt';
+
   // --- Update UI ---
-  // Grade badge
   document.documentElement.style.setProperty('--grade-color', gradeColor);
   const glowMap = {'#34d399':'rgba(52,211,153,0.35)','#a3e635':'rgba(163,230,53,0.30)','#fbbf24':'rgba(251,191,36,0.30)','#fb923c':'rgba(251,146,60,0.30)','#f87171':'rgba(248,113,113,0.30)'};
   document.documentElement.style.setProperty('--grade-glow', glowMap[gradeColor] || 'rgba(85,85,85,0.3)');
+
   const badge = document.getElementById('result-grade-badge');
   badge.style.display = 'flex';
   badge.style.borderColor = gradeColor;
@@ -1269,10 +1084,8 @@ function showResultsSuccess(res) {
   document.getElementById('result-grade-num').style.color = gradeColor;
   document.getElementById('result-grade-desc').textContent = gradeDesc;
 
-  // Stats panel
   const statsPanel = document.getElementById('results-stats');
   statsPanel.style.display = 'block';
-  document.getElementById('stats-mode').textContent = borderMode ? 'BORDER MODE' : 'FRAME MODE';
   document.getElementById('stat-lr-val').textContent = lrPct;
   document.getElementById('stat-tb-val').textContent = tbPct;
   document.getElementById('stat-lr-ratio').textContent = lrR.toFixed(2) + ':1 ratio';
@@ -1286,26 +1099,36 @@ function showResultsSuccess(res) {
 // ================================================================
 // DRAWING HELPERS
 // ================================================================
-function roundRect(c, x, y, w, h, r) {
-  c.beginPath();
-  c.moveTo(x + r, y);
-  c.lineTo(x + w - r, y); c.arcTo(x + w, y, x + w, y + r, r);
-  c.lineTo(x + w, y + h - r); c.arcTo(x + w, y + h, x + w - r, y + h, r);
-  c.lineTo(x + r, y + h); c.arcTo(x, y + h, x, y + h - r, r);
-  c.lineTo(x, y + r); c.arcTo(x, y, x + r, y, r);
-  c.closePath();
+function roundRectPath(c, x, y, w, h, r, ccw) {
+  if (ccw) {
+    // Counter-clockwise for cutout
+    c.moveTo(x + r, y);
+    c.lineTo(x, y + r); c.arcTo(x, y, x + r, y, r);
+    c.lineTo(x + w - r, y); c.arcTo(x + w, y, x + w, y + r, r);
+    c.lineTo(x + w, y + h - r); c.arcTo(x + w, y + h, x + w - r, y + h, r);
+    c.lineTo(x + r, y + h); c.arcTo(x, y + h, x, y + h - r, r);
+    c.closePath();
+  } else {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.lineTo(x + w - r, y); c.arcTo(x + w, y, x + w, y + r, r);
+    c.lineTo(x + w, y + h - r); c.arcTo(x + w, y + h, x + w - r, y + h, r);
+    c.lineTo(x + r, y + h); c.arcTo(x, y + h, x, y + h - r, r);
+    c.lineTo(x, y + r); c.arcTo(x, y, x + r, y, r);
+    c.closePath();
+  }
 }
 
-function drawLabelHiRes(c, text, lx, ly, color, scale) {
-  const fs = Math.max(12, 16 * scale);
+function drawLabel(c, text, lx, ly, color, scale) {
+  const fs = Math.max(11, 14 * scale);
   c.font = '700 ' + fs + 'px "Inter",system-ui,sans-serif';
   const m = c.measureText(text);
-  const pad = 6 * scale;
+  const pad = 5 * scale;
   const bw = m.width + pad * 2;
   const bh = fs + pad;
   c.globalAlpha = 0.85;
   c.fillStyle = 'rgba(0,0,0,0.7)';
-  roundRect(c, lx - bw / 2, ly - bh / 2, bw, bh, 6 * scale);
+  roundRectPath(c, lx - bw / 2, ly - bh / 2, bw, bh, 5 * scale);
   c.fill();
   c.globalAlpha = 1;
   c.fillStyle = color;
@@ -1315,20 +1138,18 @@ function drawLabelHiRes(c, text, lx, ly, color, scale) {
 }
 
 // ================================================================
-// SAVE — download the result canvas as PNG
+// SAVE
 // ================================================================
 function saveResult() {
   if (!resultCanvas.width) return;
 
-  // Create a final canvas that includes watermark
   const out = document.createElement('canvas');
   out.width = resultCanvas.width;
   out.height = resultCanvas.height;
   const octx = out.getContext('2d');
   octx.drawImage(resultCanvas, 0, 0);
 
-  // Watermark
-  const fs = Math.max(10, out.width * 0.015);
+  const fs = Math.max(10, out.width * 0.02);
   octx.font = '600 ' + fs + 'px "Inter",system-ui,sans-serif';
   octx.fillStyle = 'rgba(255,255,255,0.25)';
   octx.textAlign = 'right';
@@ -1342,24 +1163,20 @@ function saveResult() {
 }
 
 // ================================================================
-// RETAKE — go back to camera
+// RETAKE
 // ================================================================
 function goRetake() {
   analysisResult = null;
-  capturedImageData = null;
-  capturedPhotoCanvas = null;
+  croppedCardCanvas = null;
   switchScreen('CAMERA');
   if (!currentStream) startCamera();
 }
 
 // ================================================================
-// BUTTON EVENT LISTENERS
+// BUTTON EVENTS
 // ================================================================
-
-// Capture button
 document.getElementById('capture-btn').addEventListener('click', captureFrame);
 
-// Flip camera
 document.getElementById('flip-btn').addEventListener('click', async () => {
   facingMode = facingMode === 'environment' ? 'user' : 'environment';
   torchOn = false;
@@ -1367,7 +1184,6 @@ document.getElementById('flip-btn').addEventListener('click', async () => {
   await startCamera();
 });
 
-// Torch
 document.getElementById('torch-btn').addEventListener('click', async () => {
   if (!currentStream) return;
   torchOn = !torchOn;
@@ -1377,17 +1193,13 @@ document.getElementById('torch-btn').addEventListener('click', async () => {
   } catch (e) { torchOn = false; }
 });
 
-// Gallery upload from camera screen
 document.getElementById('gallery-btn').addEventListener('click', () => {
   document.getElementById('file-input').click();
 });
 document.getElementById('file-input').addEventListener('change', handleFileUpload);
 
-// Retake buttons
 document.getElementById('retake-btn').addEventListener('click', goRetake);
 document.getElementById('retake-failed-btn').addEventListener('click', goRetake);
-
-// Save button
 document.getElementById('save-btn').addEventListener('click', saveResult);
 
 // ================================================================
