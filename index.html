@@ -529,10 +529,8 @@ function clusterLevels(levels, threshold) {
 
 // ─── Trend line detection ───────────────────────────────────
 function findTrendLines(bars, lookback) {
-  // Adaptive lookback — smaller for intraday (more bars), larger for daily
+  const curPrice = bars[bars.length - 1].close;
   const lb = bars.length > 100 ? 2 : Math.max(2, Math.min(lookback, 3));
-  // Minimum spacing between swing points (% of total bars)
-  const minSpacing = Math.max(3, Math.floor(bars.length * 0.05));
 
   const swingHighs = [], swingLows = [];
   for (let i = lb; i < bars.length - lb; i++) {
@@ -560,19 +558,30 @@ function findTrendLines(bars, lookback) {
   }
 
   const lines = [];
+  const minDist = Math.max(5, Math.floor(bars.length * 0.1));
+  const lastIdx = bars.length - 1;
 
-  // Find best resistance trend line — connect 2 significant highs with good spacing
+  // Resistance: connect swing highs, line must be ABOVE current price at lastIdx
   if (swingHighs.length >= 2) {
-    const minDist = Math.max(5, Math.floor(bars.length * 0.15)); // at least 15% of chart apart
-    let bestPts = null, bestScore = 0;
+    let bestPts = null, bestScore = -Infinity;
     for (let a = 0; a < swingHighs.length - 1; a++) {
       for (let b = a + 1; b < swingHighs.length; b++) {
         const p1 = swingHighs[a], p2 = swingHighs[b];
         if (p2.idx - p1.idx < minDist) continue;
-        // Score: prefer wider spacing, higher prices, more recent
+        const slope = (p2.price - p1.price) / (p2.idx - p1.idx);
+        const priceAtEnd = p1.price + slope * (lastIdx - p1.idx);
+        // Must be above current price
+        if (priceAtEnd <= curPrice) continue;
+        // Most bars should be below or touching the line (valid resistance)
+        let violations = 0;
+        for (let k = p1.idx; k <= lastIdx; k++) {
+          if (bars[k].high > p1.price + slope * (k - p1.idx) + 0.5) violations++;
+        }
+        if (violations > (lastIdx - p1.idx) * 0.3) continue;
         const spacing = p2.idx - p1.idx;
-        const recency = (p1.idx + p2.idx) / 2 / bars.length; // 0-1, higher = more recent
-        const score = spacing * 0.4 + (p1.price + p2.price) * 0.01 + recency * 20;
+        const recency = (p1.idx + p2.idx) / 2 / lastIdx;
+        const closeness = 1 / (1 + Math.abs(priceAtEnd - curPrice)); // prefer closer to price
+        const score = spacing * 0.3 + recency * 20 + closeness * 50;
         if (score > bestScore) { bestScore = score; bestPts = [p1, p2]; }
       }
     }
@@ -580,24 +589,34 @@ function findTrendLines(bars, lookback) {
       const slope = (bestPts[1].price - bestPts[0].price) / (bestPts[1].idx - bestPts[0].idx);
       lines.push({
         startIdx: bestPts[0].idx, startPrice: bestPts[0].price,
-        endIdx: bars.length - 1,
-        endPrice: bestPts[0].price + slope * (bars.length - 1 - bestPts[0].idx),
+        endIdx: lastIdx,
+        endPrice: bestPts[0].price + slope * (lastIdx - bestPts[0].idx),
         type: 'resistance'
       });
     }
   }
 
-  // Find best support trend line
+  // Support: connect swing lows, line must be BELOW current price at lastIdx
   if (swingLows.length >= 2) {
-    const minDist = Math.max(5, Math.floor(bars.length * 0.15));
-    let bestPts = null, bestScore = 0;
+    let bestPts = null, bestScore = -Infinity;
     for (let a = 0; a < swingLows.length - 1; a++) {
       for (let b = a + 1; b < swingLows.length; b++) {
         const p1 = swingLows[a], p2 = swingLows[b];
         if (p2.idx - p1.idx < minDist) continue;
+        const slope = (p2.price - p1.price) / (p2.idx - p1.idx);
+        const priceAtEnd = p1.price + slope * (lastIdx - p1.idx);
+        // Must be below current price
+        if (priceAtEnd >= curPrice) continue;
+        // Most bars should be above or touching the line (valid support)
+        let violations = 0;
+        for (let k = p1.idx; k <= lastIdx; k++) {
+          if (bars[k].low < p1.price + slope * (k - p1.idx) - 0.5) violations++;
+        }
+        if (violations > (lastIdx - p1.idx) * 0.3) continue;
         const spacing = p2.idx - p1.idx;
-        const recency = (p1.idx + p2.idx) / 2 / bars.length;
-        const score = spacing * 0.4 - (p1.price + p2.price) * 0.01 + recency * 20;
+        const recency = (p1.idx + p2.idx) / 2 / lastIdx;
+        const closeness = 1 / (1 + Math.abs(curPrice - priceAtEnd));
+        const score = spacing * 0.3 + recency * 20 + closeness * 50;
         if (score > bestScore) { bestScore = score; bestPts = [p1, p2]; }
       }
     }
@@ -605,8 +624,8 @@ function findTrendLines(bars, lookback) {
       const slope = (bestPts[1].price - bestPts[0].price) / (bestPts[1].idx - bestPts[0].idx);
       lines.push({
         startIdx: bestPts[0].idx, startPrice: bestPts[0].price,
-        endIdx: bars.length - 1,
-        endPrice: bestPts[0].price + slope * (bars.length - 1 - bestPts[0].idx),
+        endIdx: lastIdx,
+        endPrice: bestPts[0].price + slope * (lastIdx - bestPts[0].idx),
         type: 'support'
       });
     }
