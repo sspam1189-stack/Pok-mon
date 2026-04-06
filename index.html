@@ -599,6 +599,34 @@ function findTrendLines(bars, lookback) {
   }
   bestLine(swingHighs, 'resistance');
   bestLine(swingLows, 'support');
+
+  // If a line is broken, try to find a new one from recent highs/lows above/below price
+  const resBroken = lines.find(l => l.type === 'resistance' && l.broken);
+  const supBroken = lines.find(l => l.type === 'support' && l.broken);
+  if (resBroken) {
+    // Find nearest resistance above current price from recent swing highs
+    const recentHighs = swingHighs.filter(h => h.price > curPrice).sort((a, b) => a.price - b.price);
+    if (recentHighs.length) {
+      const nearHigh = recentHighs[0];
+      lines.push({
+        startIdx: nearHigh.idx, startPrice: nearHigh.price,
+        endIdx: lastIdx, endPrice: nearHigh.price,
+        type: 'resistance', broken: false, isNew: true
+      });
+    }
+  }
+  if (supBroken) {
+    const recentLows = swingLows.filter(l => l.price < curPrice).sort((a, b) => b.price - a.price);
+    if (recentLows.length) {
+      const nearLow = recentLows[0];
+      lines.push({
+        startIdx: nearLow.idx, startPrice: nearLow.price,
+        endIdx: lastIdx, endPrice: nearLow.price,
+        type: 'support', broken: false, isNew: true
+      });
+    }
+  }
+
   return lines;
 }
 
@@ -1032,7 +1060,7 @@ function buildAll() {
     const extEndIdx = labels.length + projLen - 1;
     const extEndPrice = tl.startPrice + slope * (extEndIdx - tl.startIdx);
     const prefix = tl.type === 'support' ? 'S' : 'R';
-    const breakLabel = tl.broken ? ' BROKEN' : '';
+    const breakLabel = tl.broken ? ' BROKEN' : tl.isNew ? ' NEW' : '';
     annotations['trend' + i] = {
       type: 'line',
       xMin: tl.startIdx, xMax: extEndIdx, xScaleID: 'x',
