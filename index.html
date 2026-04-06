@@ -120,7 +120,7 @@
   <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
     <div id="timeframe-tabs" style="display:flex;gap:0;border:1px solid var(--border);border-radius:6px;overflow:hidden;">
       <button class="tf-tab" data-interval="15m" data-range="5d" style="padding:5px 14px;font-size:12px;border:none;cursor:pointer;background:var(--panel);color:var(--muted);">15 Min</button>
-      <button class="tf-tab" data-interval="60m" data-range="1mo" style="padding:5px 14px;font-size:12px;border:none;border-left:1px solid var(--border);cursor:pointer;background:var(--panel);color:var(--muted);">1 Hour</button>
+      <button class="tf-tab" data-interval="60m" data-range="10d" style="padding:5px 14px;font-size:12px;border:none;border-left:1px solid var(--border);cursor:pointer;background:var(--panel);color:var(--muted);">1 Hour</button>
       <button class="tf-tab active" data-interval="1d" data-range="1mo" style="padding:5px 14px;font-size:12px;border:none;border-left:1px solid var(--border);cursor:pointer;background:var(--cyan);color:#000;font-weight:600;">1 Day</button>
     </div>
     <span style="font-size:11px;color:var(--muted);">Auto-refresh:</span>
@@ -215,7 +215,7 @@
 
 <div class="chart-wrap" id="proj-breakdown">
   <div class="chart-header">
-    <div class="chart-title">Day-by-Day Projection</div>
+    <div class="chart-title" id="proj-title">Day-by-Day Projection</div>
   </div>
   <div id="proj-days" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;"></div>
 </div>
@@ -383,10 +383,10 @@ async function fetchSPY() {
         cutoff.setHours(0,0,0,0);
         return bars.filter(b => b.date >= cutoff);
       }
-      // Trim hourly data to ~3 weeks
+      // Trim hourly data to last 10 trading days
       if (currentInterval === '60m') {
         const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - 21);
+        cutoff.setDate(cutoff.getDate() - 14); // 14 calendar days ~= 10 trading days
         return bars.filter(b => b.date >= cutoff);
       }
       return bars;
@@ -742,7 +742,8 @@ function buildAll() {
   });
 
   // ── Indicator-driven price projection ──
-  const actualProjDays = (currentInterval === '15m' || currentInterval === '60m') ? 2 : 5;
+  // Always show next 5 increments in day-by-day cards
+  const actualProjDays = 5;
   const projLabels = [];
   const projMid = [], projHi = [], projLo = [];
   const lastDate = BARS[BARS.length - 1].date;
@@ -809,8 +810,9 @@ function buildAll() {
   const stepMove = (directionScore * lastAtrVal * 0.7) / barsPerDay;
   const stepVol = dailyVol / Math.sqrt(barsPerDay);
 
-  // Number of projection steps: 2 trading days worth of bars for intraday, 5 days for daily
-  const projSteps = currentInterval === '15m' ? 2 * 26 : currentInterval === '60m' ? 2 * 7 : 5;
+  // Projection: 15m=2 trading days ahead, 1h=3 trading days ahead, 1d=5 trading days ahead
+  const projDaysAhead = currentInterval === '15m' ? 2 : currentInterval === '60m' ? 3 : 5;
+  const projSteps = projDaysAhead * barsPerDay;
   // Step interval in minutes
   const stepMinutes = currentInterval === '15m' ? 15 : currentInterval === '60m' ? 60 : 1440;
 
@@ -878,18 +880,24 @@ function buildAll() {
   document.getElementById('stat-signals').style.color = lastSignal === 'Bullish' ? 'var(--green)' : lastSignal === 'Bearish' ? 'var(--red)' : 'var(--amber)';
   document.getElementById('stat-signals-detail').textContent = `Last: ${lastSignal} · ${bullSignals.length}▲ ${bearSignals.length}▼`;
 
-  // Day-by-day breakdown
+  // Increment-by-increment breakdown (next 5 increments)
+  const incLabel = currentInterval === '15m' ? '15 Min' : currentInterval === '60m' ? '1 Hour' : 'Day';
+  document.getElementById('proj-title').textContent = `Next 5 ${incLabel} Increments`;
+  // Pick 5 evenly spaced points from projection
+  const cardCount = 5;
+  const cardStep = Math.max(1, Math.floor(projMid.length / cardCount));
   let projDaysHTML = '';
-  for (let d = 0; d < actualProjDays; d++) {
-    const prevPrice = d === 0 ? curPrice : projMid[d - 1];
-    const change = projMid[d] - curPrice;
+  for (let c = 0; c < cardCount; c++) {
+    const idx = Math.min(c * cardStep + (cardStep - 1), projMid.length - 1);
+    if (idx < 0 || idx >= projMid.length) continue;
+    const change = projMid[idx] - curPrice;
     const changePct = (change / curPrice * 100).toFixed(2);
     const isUp = change >= 0;
     projDaysHTML += `<div class="proj-day">
-      <div class="day-label">Day ${d + 1}</div>
-      <div class="day-date">${projLabels[d]}</div>
-      <div class="day-mid">$${projMid[d].toFixed(2)}</div>
-      <div class="day-range">$${projLo[d].toFixed(2)} – $${projHi[d].toFixed(2)}</div>
+      <div class="day-label">${incLabel} ${c + 1}</div>
+      <div class="day-date">${projLabels[idx] || ''}</div>
+      <div class="day-mid">$${projMid[idx].toFixed(2)}</div>
+      <div class="day-range">$${projLo[idx].toFixed(2)} – $${projHi[idx].toFixed(2)}</div>
       <div class="day-change ${isUp ? 'up' : 'down'}">${isUp ? '+' : ''}${changePct}%</div>
     </div>`;
   }
