@@ -833,18 +833,27 @@ function buildAll() {
   const stepMinutes = currentInterval === '15m' ? 15 : currentInterval === '60m' ? 60 : 1440;
 
   let projPrice = curPrice;
+  // Start projection from the next trading day's market open, not from last bar
   const lastBarDate = new Date(BARS[BARS.length - 1].date);
+  let projStart = new Date(lastBarDate);
+  // Move to next day
+  projStart.setDate(projStart.getDate() + 1);
+  projStart.setHours(9, 30, 0, 0); // market open
+  // Skip to Monday if on weekend
+  while (projStart.getDay() === 0 || projStart.getDay() === 6) {
+    projStart.setDate(projStart.getDate() + 1);
+  }
+
   let stepCount = 0;
-  // Generate steps, skipping up to 5000 iterations to find valid market times
   for (let d = 0; d < 5000 && stepCount < projSteps; d++) {
-    const futDate = new Date(lastBarDate.getTime() + (d + 1) * stepMinutes * 60000);
+    const futDate = new Date(projStart.getTime() + d * stepMinutes * 60000);
     // Skip weekends
     if (futDate.getDay() === 0 || futDate.getDay() === 6) continue;
     // Skip outside market hours (9:30-16:00 ET) for intraday
     if (currentInterval !== '1d') {
       const h = futDate.getHours(), m = futDate.getMinutes();
       const mins = h * 60 + m;
-      if (mins < 570 || mins >= 960) continue; // 9:30=570, 16:00=960
+      if (mins < 570 || mins >= 960) continue;
     }
     stepCount++;
     projLabels.push(fmt(futDate));
