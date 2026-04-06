@@ -851,10 +851,12 @@ function buildAll() {
   const stepMinutes = currentInterval === '15m' ? 15 : currentInterval === '60m' ? 60 : 1440;
 
   let projPrice = curPrice;
-  // Start projection from today or the next trading day
-  let projStart = new Date();
+  // Start projection from the day AFTER the last bar
+  const lastBarDate = new Date(BARS[BARS.length - 1].date);
+  let projStart = new Date(lastBarDate);
+  projStart.setDate(projStart.getDate() + 1);
   projStart.setHours(9, 30, 0, 0);
-  // Skip to next trading day if today is weekend/holiday
+  // Skip to next trading day if weekend/holiday
   while (!isTradingDay(projStart)) {
     projStart.setDate(projStart.getDate() + 1);
   }
