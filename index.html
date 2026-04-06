@@ -351,12 +351,19 @@ async function fetchSPY() {
   }
 
   const yahooUrl2 = yahooUrl.replace('query1.finance', 'query2.finance');
-  const attempts = [
-    () => tryProxy(`https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl2)}`),
-    () => tryAllOrigins(),
-    () => tryProxy(`https://corsproxy.io/?url=${encodeURIComponent(yahooUrl2)}`),
-    () => tryProxy(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(yahooUrl2)}`),
+  const proxyUrls = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl2)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`,
+    `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl2)}`,
+    `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(yahooUrl2)}`,
   ];
+  // Build attempts: try each proxy up to 2 times (flaky proxies often work on retry)
+  const attempts = [];
+  for (const url of proxyUrls) {
+    attempts.push(() => tryProxy(url));
+    attempts.push(() => tryProxy(url));
+  }
+  attempts.push(() => tryAllOrigins()); // wrapped /get as last resort
 
   let lastErr;
   for (const attempt of attempts) {
