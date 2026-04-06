@@ -816,7 +816,9 @@ function buildAll() {
 
   let projPrice = curPrice;
   const lastBarDate = new Date(BARS[BARS.length - 1].date);
-  for (let d = 0; d < projSteps; d++) {
+  let stepCount = 0;
+  // Generate steps, skipping up to 5000 iterations to find valid market times
+  for (let d = 0; d < 5000 && stepCount < projSteps; d++) {
     const futDate = new Date(lastBarDate.getTime() + (d + 1) * stepMinutes * 60000);
     // Skip weekends
     if (futDate.getDay() === 0 || futDate.getDay() === 6) continue;
@@ -826,18 +828,19 @@ function buildAll() {
       const mins = h * 60 + m;
       if (mins < 570 || mins >= 960) continue; // 9:30=570, 16:00=960
     }
+    stepCount++;
     projLabels.push(fmt(futDate));
 
     projPrice += stepMove;
-    const spread = stepVol * Math.sqrt(d + 1);
+    const spread = stepVol * Math.sqrt(stepCount);
     projMid.push(+projPrice.toFixed(2));
     projHi.push(+(projPrice + spread).toFixed(2));
     projLo.push(+(projPrice - spread).toFixed(2));
   }
 
-  const projEnd = projMid[projMid.length - 1];
-  const projHiEnd = projHi[projHi.length - 1];
-  const projLoEnd = projLo[projLo.length - 1];
+  const projEnd = projMid.length ? projMid[projMid.length - 1] : curPrice;
+  const projHiEnd = projHi.length ? projHi[projHi.length - 1] : curPrice;
+  const projLoEnd = projLo.length ? projLo[projLo.length - 1] : curPrice;
   const expiryStr = fmt(nextFri);
 
   // Update projection stat
