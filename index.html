@@ -216,7 +216,7 @@
   <div class="chart-header">
     <div class="chart-title" id="proj-title">Day-by-Day Projection</div>
   </div>
-  <div id="proj-days" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;"></div>
+  <div id="proj-days" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;"></div>
 </div>
 
 <div class="chart-wrap">
@@ -940,8 +940,21 @@ function buildAll() {
   }
   const incLabel = currentInterval === '15m' ? '15 Min' : currentInterval === '60m' ? '1 Hour' : 'Day';
   const cardTitle = currentInterval === '1d' ? 'Day' : 'Trading Day';
-  document.getElementById('proj-title').textContent = currentInterval === '1d' ? 'Next 5 Day Increments' : `Next ${cardIndices.length} ${incLabel} Trading Days`;
-  let projDaysHTML = '';
+  document.getElementById('proj-title').textContent = 'Projection';
+  const lastBar = BARS[BARS.length - 1];
+  const dayChg = lastBar.close - lastBar.open;
+  const dayChgPct = (dayChg / lastBar.open * 100).toFixed(2);
+  const dayUp = dayChg >= 0;
+  let projDaysHTML = `<div class="proj-day" style="border:1px solid var(--border);background:rgba(255,255,255,0.02)">
+    <div class="day-label">Last Close</div>
+    <div class="day-date">${fmt(lastBar.date)}</div>
+    <div style="font-size:9px;color:#555;margin-top:6px">CLOSE</div>
+    <div class="day-mid">$${lastBar.close.toFixed(2)}</div>
+    <div style="font-size:9px;color:#555;margin-top:4px">RANGE</div>
+    <div class="day-range">$${lastBar.low.toFixed(2)} – $${lastBar.high.toFixed(2)}</div>
+    <div style="font-size:9px;color:#555;margin-top:4px">OPEN → CLOSE</div>
+    <div class="day-change ${dayUp ? 'up' : 'down'}">${dayUp ? '+' : ''}${dayChgPct}%</div>
+  </div>`;
   for (let c = 0; c < cardIndices.length; c++) {
     const idx = cardIndices[c];
     if (idx >= projMid.length) continue;
