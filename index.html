@@ -230,6 +230,7 @@
       <span class="leg"><span class="leg-line" style="background:rgba(255,23,68,.4);height:6px"></span>Resistance</span>
       <span class="leg"><span class="leg-line" style="background:rgba(206,147,216,.2);height:6px"></span>Bollinger</span>
       <span class="leg"><span class="leg-line" style="background:var(--amber);border-top:2px dotted var(--amber);background:none"></span>VWAP</span>
+      <span class="leg"><span class="leg-line" style="background:var(--amber);height:2px;border-top:2px dashed var(--amber);background:none"></span>Trend</span>
       <span class="leg"><span class="leg-line" style="background:rgba(0,229,255,.3);height:6px"></span>Projected Range</span>
     </div>
   </div>
@@ -449,13 +450,21 @@ function computeBollinger(prices, period) {
 }
 
 function computeVWAP(bars) {
-  let cumVP = 0, cumVol = 0;
-  return bars.map(b => {
+  let cumVP = 0, cumVol = 0, cumVP2 = 0;
+  const vwap = [], upper = [], lower = [];
+  bars.forEach(b => {
     const tp = (b.high + b.low + b.close) / 3;
     cumVP += tp * b.volume;
+    cumVP2 += tp * tp * b.volume;
     cumVol += b.volume;
-    return +(cumVP / cumVol).toFixed(2);
+    const v = cumVP / cumVol;
+    const variance = Math.max(0, cumVP2 / cumVol - v * v);
+    const sd = Math.sqrt(variance);
+    vwap.push(+v.toFixed(2));
+    upper.push(+(v + 2 * sd).toFixed(2));
+    lower.push(+(v - 2 * sd).toFixed(2));
   });
+  return { vwap, upper, lower };
 }
 
 function computeMACD(prices) {
@@ -530,6 +539,67 @@ function clusterLevels(levels, threshold) {
 }
 
 // ─── Trend line detection ───────────────────────────────────
+function findTrendLines(bars, lookback) {
+  const curPrice = bars[bars.length - 1].close;
+  const lb = Math.max(2, Math.min(lookback, 3));
+  const swingHighs = [], swingLows = [];
+  for (let i = lb; i < bars.length - lb; i++) {
+    let isHigh = true, isLow = true;
+    for (let j = 1; j <= lb; j++) {
+      if (bars[i].high < bars[i-j].high || bars[i].high < bars[i+j].high) isHigh = false;
+      if (bars[i].low > bars[i-j].low || bars[i].low > bars[i+j].low) isLow = false;
+    }
+    if (isHigh) swingHighs.push({ idx: i, price: bars[i].high });
+    if (isLow) swingLows.push({ idx: i, price: bars[i].low });
+  }
+  // Fallback
+  if (swingHighs.length < 2) for (let i = 1; i < bars.length - 1; i++) {
+    if (bars[i].high > bars[i-1].high && bars[i].high > bars[i+1].high) swingHighs.push({ idx: i, price: bars[i].high });
+  }
+  if (swingLows.length < 2) for (let i = 1; i < bars.length - 1; i++) {
+    if (bars[i].low < bars[i-1].low && bars[i].low < bars[i+1].low) swingLows.push({ idx: i, price: bars[i].low });
+  }
+  const lines = [];
+  const minDist = Math.max(3, Math.floor(bars.length * 0.1));
+  const lastIdx = bars.length - 1;
+
+  function bestLine(points, type) {
+    const isRes = type === 'resistance';
+    let best = null, bestScore = -Infinity;
+    for (let a = 0; a < points.length - 1; a++) {
+      for (let b = a + 1; b < points.length; b++) {
+        const p1 = points[a], p2 = points[b];
+        if (p2.idx - p1.idx < minDist) continue;
+        const slope = (p2.price - p1.price) / (p2.idx - p1.idx);
+        const priceAtEnd = p1.price + slope * (lastIdx - p1.idx);
+        if (isRes && priceAtEnd <= curPrice) continue;
+        if (!isRes && priceAtEnd >= curPrice) continue;
+        // Count touches (within 0.5% of line)
+        let touches = 0, violations = 0;
+        for (let k = p1.idx; k <= lastIdx; k++) {
+          const linePrice = p1.price + slope * (k - p1.idx);
+          const checkPrice = isRes ? bars[k].high : bars[k].low;
+          if (Math.abs(checkPrice - linePrice) / linePrice < 0.005) touches++;
+          if (isRes && bars[k].high > linePrice * 1.005) violations++;
+          if (!isRes && bars[k].low < linePrice * 0.995) violations++;
+        }
+        if (violations > (lastIdx - p1.idx) * 0.25) continue;
+        const recency = (p1.idx + p2.idx) / 2 / lastIdx;
+        const closeness = 1 / (1 + Math.abs(priceAtEnd - curPrice));
+        const score = touches * 10 + recency * 15 + closeness * 40;
+        if (score > bestScore) { bestScore = score; best = { p1, p2, slope, priceAtEnd }; }
+      }
+    }
+    if (best) lines.push({
+      startIdx: best.p1.idx, startPrice: best.p1.price,
+      endIdx: lastIdx, endPrice: best.priceAtEnd, type
+    });
+  }
+  bestLine(swingHighs, 'resistance');
+  bestLine(swingLows, 'support');
+  return lines;
+}
+
 // ─── US market holidays 2026 (NYSE/NASDAQ closed) ──────────
 const MARKET_HOLIDAYS = new Set([
   '2026-01-01','2026-01-19','2026-02-16','2026-04-03',
@@ -569,7 +639,7 @@ function buildAll() {
   const rsi = computeRSI(prices, rsiPeriod);
   const bbPeriod = +document.getElementById('s-bb-period').value;
   const bb = computeBollinger(prices, bbPeriod);
-  const vwap = computeVWAP(BARS);
+  const { vwap, upper: vwapUpper, lower: vwapLower } = computeVWAP(BARS);
   const { macdLine, signalLine, histogram } = computeMACD(prices);
   const atr = computeATR(BARS, 14);
   const volumes = BARS.map(b => b.volume);
@@ -945,6 +1015,27 @@ function buildAll() {
   const projLen = projLabels.length;
   const allLabels = [...labels, ...projLabels];
 
+  // ── Trend lines (extended into projection zone) ──
+  const trendLines = findTrendLines(BARS, lookback);
+  trendLines.forEach((tl, i) => {
+    const color = tl.type === 'support' ? 'rgba(0,230,118,0.7)' : 'rgba(255,23,68,0.7)';
+    const slope = (tl.endPrice - tl.startPrice) / (tl.endIdx - tl.startIdx);
+    const extEndIdx = labels.length + projLen - 1;
+    const extEndPrice = tl.startPrice + slope * (extEndIdx - tl.startIdx);
+    annotations['trend' + i] = {
+      type: 'line',
+      xMin: tl.startIdx, xMax: extEndIdx, xScaleID: 'x',
+      yMin: tl.startPrice, yMax: extEndPrice,
+      borderColor: color, borderWidth: 2, borderDash: [6, 3],
+      label: {
+        display: true,
+        content: (tl.type === 'support' ? 'S trend → $' : 'R trend → $') + extEndPrice.toFixed(0),
+        position: 'end', backgroundColor: 'rgba(0,0,0,0.6)', color: color,
+        font: { size: 9 }, padding: 3
+      }
+    };
+  });
+
   const padded = (arr) => [...arr, ...Array(projLen).fill(null)];
   const projPadded = (arr) => [...Array(prices.length - 1).fill(null), prices[prices.length - 1], ...arr]; // connect from last real price
 
@@ -963,6 +1054,8 @@ function buildAll() {
       { label: 'BB Upper', data: padded(bb.map(b => b.upper)), borderColor: 'rgba(206,147,216,0.3)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: '+1', backgroundColor: 'rgba(206,147,216,0.06)' },
       { label: 'BB Lower', data: padded(bb.map(b => b.lower)), borderColor: 'rgba(206,147,216,0.3)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: false },
       { label: 'VWAP', data: padded(vwap), borderColor: '#ffb300', borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0, tension: 0.3 },
+      { label: 'VWAP Upper', data: padded(vwapUpper), borderColor: 'rgba(255,179,0,0.25)', borderWidth: 1, borderDash: [2, 3], pointRadius: 0, tension: 0.3, fill: '+1', backgroundColor: 'rgba(255,179,0,0.04)' },
+      { label: 'VWAP Lower', data: padded(vwapLower), borderColor: 'rgba(255,179,0,0.25)', borderWidth: 1, borderDash: [2, 3], pointRadius: 0, tension: 0.3, fill: false },
       { label: 'Proj Mid', data: projPadded(projMid), borderColor: 'rgba(0,229,255,0.6)', borderWidth: 2, borderDash: [4, 3], pointRadius: 0, tension: 0.3, fill: false },
       { label: 'Proj High', data: projPadded(projHi), borderColor: 'rgba(0,229,255,0.25)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: '+1', backgroundColor: 'rgba(0,229,255,0.07)' },
       { label: 'Proj Low', data: projPadded(projLo), borderColor: 'rgba(0,229,255,0.25)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: false },
