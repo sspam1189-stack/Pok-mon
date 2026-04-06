@@ -1,346 +1,415 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Testing</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPY 15-Min Entry / Exit Model</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;700;900&display=swap');
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  :root { --yellow: #ffcc00; --green: #00ff88; --red: #ff2244; --orange: #ff6600; --cyan: #00cfff; --bg: #0a0a0a; --panel: #111; --border: #222; }
-  body { background: var(--bg); color: #fff; font-family: 'Share Tech Mono', monospace; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-  header { background: var(--panel); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-  header h1 { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 1.3rem; letter-spacing: 0.08em; color: var(--yellow); text-transform: uppercase; }
-  #ready-dot { font-size: 0.6rem; color: var(--green); letter-spacing: 0.1em; }
-  #cam-wrap { position: relative; flex: 1; overflow: hidden; background: #000; }
-  video { width: 100%; height: 100%; object-fit: cover; display: block; }
-  canvas#overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
-  canvas#proc { display: none; }
-  #controls { position: absolute; top: 10px; right: 10px; z-index: 10; display: flex; flex-direction: column; gap: 8px; }
-  .ctrl-btn { background: rgba(0,0,0,0.75); border: 1px solid #333; color: #fff; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.1em; padding: 8px 12px; border-radius: 3px; cursor: pointer; text-transform: uppercase; white-space: nowrap; }
-  .ctrl-btn.active { border-color: var(--green); color: var(--green); }
-  #lock-btn { border-color: var(--yellow); color: var(--yellow); }
-  #lock-btn.locked { border-color: var(--green); color: var(--green); }
-  #start-msg { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.92); z-index: 20; gap: 14px; text-align: center; padding: 24px; }
-  #start-msg h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 1.8rem; font-weight: 900; color: var(--yellow); }
-  #start-msg p { font-size: 0.75rem; color: #888; max-width: 260px; line-height: 1.7; }
-  #start-btn { background: var(--yellow); color: #000; border: none; padding: 14px 32px; font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 1.1rem; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 3px; cursor: pointer; margin-top: 4px; }
-  #tip { font-size: 0.65rem; color: #444; margin-top: -4px; }
-  #status-bar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); font-size: 0.62rem; color: #aaa; background: rgba(0,0,0,0.65); padding: 4px 12px; border-radius: 20px; z-index: 5; pointer-events: none; letter-spacing: 0.08em; white-space: nowrap; }
-  #stats { background: var(--panel); border-top: 1px solid var(--border); padding: 12px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex-shrink: 0; }
-  .stat-block { background: #0d0d0d; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; }
-  .stat-label { font-size: 0.6rem; color: #555; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 4px; }
-  .stat-row { display: flex; justify-content: space-between; align-items: baseline; }
-  .stat-value { font-size: 1.2rem; font-weight: bold; font-family: 'Barlow Condensed', sans-serif; }
-  .stat-ratio { font-size: 0.75rem; color: #888; }
-  .bar-wrap { background: #1a1a1a; border-radius: 2px; height: 4px; margin-top: 5px; overflow: hidden; }
-  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.15s ease; }
-  .grade-block { grid-column: 1 / -1; background: #0d0d0d; border: 1px solid var(--border); border-radius: 4px; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; }
-  .grade-label { font-size: 0.6rem; color: #555; letter-spacing: 0.15em; text-transform: uppercase; }
-  .grade-value { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 2rem; letter-spacing: 0.05em; }
-  .grade-desc { font-size: 0.7rem; text-align: right; color: #888; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  :root{--bg:#0a0a0a;--panel:#111;--border:#222;--text:#ccc;--muted:#555;--green:#00e676;--red:#ff1744;--cyan:#00e5ff;--amber:#ffb300;--purple:#ce93d8;--blue:#42a5f5;--orange:#ffa726;}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:13px;min-height:100vh;padding:16px;}
+  h1{font-size:1.15rem;font-weight:600;color:#fff;margin-bottom:2px;}
+  .subtitle{font-size:11px;color:var(--muted);margin-bottom:14px;}
+
+  /* Sliders */
+  .slider-row{display:flex;flex-wrap:wrap;gap:10px;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:14px 16px;margin-bottom:12px;}
+  .slider-group{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:90px;flex:1;}
+  .slider-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+  .slider-val{font-size:1.1rem;font-weight:600;color:#fff;}
+  input[type=range]{width:100%;accent-color:var(--cyan);cursor:pointer;}
+
+  /* Stat cards */
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;}
+  .stat-card{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:12px 14px;}
+  .stat-card .label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+  .stat-card .value{font-size:1.6rem;font-weight:700;}
+
+  /* Charts */
+  .chart-wrap{background:var(--panel);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;padding:10px 12px;}
+  .chart-title{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;}
+  .leg{display:inline-flex;align-items:center;gap:5px;}
+  .leg-line{width:16px;height:2px;border-radius:1px;}
+  canvas{width:100%!important;}
+
+  /* Entry/Exit legend */
+  .rules-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
+  .rule-card{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:12px 14px;}
+  .rule-card h3{font-size:11px;font-weight:600;letter-spacing:.05em;margin-bottom:10px;}
+  .rule-card ul{list-style:none;display:flex;flex-direction:column;gap:7px;}
+  .rule-card li{font-size:12px;color:#aaa;display:flex;align-items:flex-start;gap:8px;}
+  .rule-card li::before{content:'●';flex-shrink:0;margin-top:1px;}
+  .long-rules h3{color:var(--green);}
+  .long-rules li::before{color:var(--green);}
+  .exit-rules h3{color:var(--red);}
+  .exit-rules li::before{color:var(--red);}
 </style>
 </head>
 <body>
-<header>
-  <h1>⬛ Centering Cam</h1>
-  <span id="ready-dot">● READY</span>
-</header>
-<div id="cam-wrap">
-  <video id="video" autoplay playsinline muted></video>
-  <canvas id="overlay"></canvas>
-  <canvas id="proc"></canvas>
-  <div id="controls">
-    <button class="ctrl-btn active" id="auto-btn">⟳ AUTO</button>
-    <button class="ctrl-btn" id="lock-btn">⬛ LOCK</button>
+
+<h1>SPY 15-Min Entry / Exit Model</h1>
+<p class="subtitle">TSI + RSI + EMA 7/21/50/200 — simulated price data · adjust params to see signal changes</p>
+
+<div class="slider-row">
+  <div class="slider-group">
+    <div class="slider-label">RSI Period</div>
+    <input type="range" id="s-rsi-period" min="5" max="30" value="14">
+    <div class="slider-val" id="v-rsi-period">14</div>
   </div>
-  <div id="status-bar">Searching — place card on dark surface</div>
-  <div id="start-msg">
-    <h2>Centering Cam</h2>
-    <p>Point your camera at a Pokémon card on a dark surface. Edges are detected automatically.</p>
-    <button id="start-btn">Start Camera</button>
-    <div id="tip">Best results on a black or dark background</div>
+  <div class="slider-group">
+    <div class="slider-label">TSI Long</div>
+    <input type="range" id="s-tsi-long" min="5" max="50" value="14">
+    <div class="slider-val" id="v-tsi-long">14</div>
+  </div>
+  <div class="slider-group">
+    <div class="slider-label">TSI Short</div>
+    <input type="range" id="s-tsi-short" min="2" max="25" value="7">
+    <div class="slider-val" id="v-tsi-short">7</div>
+  </div>
+  <div class="slider-group">
+    <div class="slider-label">TSI Signal</div>
+    <input type="range" id="s-tsi-signal" min="2" max="25" value="13">
+    <div class="slider-val" id="v-tsi-signal">13</div>
+  </div>
+  <div class="slider-group">
+    <div class="slider-label">RSI Midline</div>
+    <input type="range" id="s-rsi-mid" min="30" max="70" value="50">
+    <div class="slider-val" id="v-rsi-mid">50</div>
   </div>
 </div>
-<div id="stats">
-  <div class="stat-block">
-    <div class="stat-label">◀ Left / Right ▶</div>
-    <div class="stat-row">
-      <span class="stat-value" id="lr-val" style="color:var(--orange)">—</span>
-      <span class="stat-ratio" id="lr-ratio">—</span>
-    </div>
-    <div class="bar-wrap"><div class="bar-fill" id="lr-bar" style="background:var(--orange);width:50%"></div></div>
+
+<div class="stats-row">
+  <div class="stat-card"><div class="label">Long Entries</div><div class="value" id="stat-long" style="color:var(--green)">—</div></div>
+  <div class="stat-card"><div class="label">Exit Signals</div><div class="value" id="stat-exit" style="color:var(--red)">—</div></div>
+  <div class="stat-card"><div class="label">Bullish Bars</div><div class="value" id="stat-bull" style="color:var(--cyan)">—</div></div>
+  <div class="stat-card"><div class="label">Last RSI</div><div class="value" id="stat-rsi" style="color:var(--amber)">—</div></div>
+</div>
+
+<div class="chart-wrap">
+  <div class="chart-title">
+    <span>15-min price + emas</span>
+    <span class="leg"><span class="leg-line" style="background:#fff"></span>Price</span>
+    <span class="leg"><span class="leg-line" style="background:var(--purple)"></span>EMA 7</span>
+    <span class="leg"><span class="leg-line" style="background:var(--cyan)"></span>EMA 21</span>
+    <span class="leg"><span class="leg-line" style="background:var(--orange)"></span>EMA 50</span>
+    <span class="leg"><span class="leg-line" style="background:var(--red)"></span>EMA 200</span>
+    <span class="leg"><span style="color:var(--green);font-size:12px">▲</span>Long</span>
+    <span class="leg"><span style="color:var(--red);font-size:12px">▼</span>Exit</span>
   </div>
-  <div class="stat-block">
-    <div class="stat-label">▲ Top / Bottom ▼</div>
-    <div class="stat-row">
-      <span class="stat-value" id="tb-val" style="color:var(--cyan)">—</span>
-      <span class="stat-ratio" id="tb-ratio">—</span>
-    </div>
-    <div class="bar-wrap"><div class="bar-fill" id="tb-bar" style="background:var(--cyan);width:50%"></div></div>
+  <div style="position:relative;height:280px"><canvas id="priceChart"></canvas></div>
+</div>
+
+<div class="chart-wrap">
+  <div class="chart-title">
+    <span>TSI — True Strength Index</span>
+    <span class="leg"><span class="leg-line" style="background:var(--blue)"></span>TSI</span>
+    <span class="leg"><span class="leg-line" style="background:var(--amber);border-top:2px dashed var(--amber);background:none"></span>Signal line</span>
+    <span class="leg"><span class="leg-line" style="background:var(--muted)"></span>Zero</span>
   </div>
-  <div class="grade-block">
-    <div>
-      <div class="grade-label">Est. PSA Grade</div>
-      <div class="grade-value" id="grade-val">—</div>
-    </div>
-    <div class="grade-desc" id="grade-desc">Point camera<br>at card</div>
+  <div style="position:relative;height:160px"><canvas id="tsiChart"></canvas></div>
+</div>
+
+<div class="chart-wrap">
+  <div class="chart-title">
+    <span>RSI</span>
+    <span class="leg"><span class="leg-line" style="background:var(--blue)"></span>RSI</span>
+    <span class="leg"><span class="leg-line" style="background:var(--red)"></span>70 overbought</span>
+    <span class="leg"><span class="leg-line" style="background:var(--muted)"></span>Midline</span>
+    <span class="leg"><span class="leg-line" style="background:var(--green)"></span>30 oversold</span>
   </div>
-</div><script>
-const video     = document.getElementById('video');
-const overlay   = document.getElementById('overlay');
-const proc      = document.getElementById('proc');
-const ctx       = overlay.getContext('2d');
-const pctx      = proc.getContext('2d', { willReadFrequently: true });
-const wrap      = document.getElementById('cam-wrap');
-const statusBar = document.getElementById('status-bar');
+  <div style="position:relative;height:130px"><canvas id="rsiChart"></canvas></div>
+</div>
 
-let locked = false, lockedCard = null, smoothCard = null, lastDetect = 0;
-const SMOOTH = 0.15;
-const PW = 160, PH = 120; // small proc canvas for speed
+<div class="rules-row">
+  <div class="rule-card long-rules">
+    <h3>Long entry — all required</h3>
+    <ul>
+      <li>EMA 7 above EMA 21</li>
+      <li>Price above EMA 21</li>
+      <li>TSI crosses above signal line</li>
+      <li>RSI at or above midline – 5</li>
+    </ul>
+  </div>
+  <div class="rule-card exit-rules">
+    <h3>Exit — any one fires</h3>
+    <ul>
+      <li>TSI crosses below signal line</li>
+      <li>Price closes below EMA 21</li>
+      <li>RSI drops below midline + 5</li>
+      <li>EMA 7 crosses below EMA 21</li>
+    </ul>
+  </div>
+</div>
 
-proc.width = PW; proc.height = PH;
+<script>
+// ─── Seeded RNG ───────────────────────────────────────────────
+let S = 54321;
+const rng = () => { S = (S * 1664525 + 1013904223) >>> 0; return S / 4294967296; };
 
-function lerp(a,b,t){ return a+(b-a)*t; }
-
-// --- Camera start ---
-document.getElementById('start-btn').addEventListener('click', async () => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } }
-    });
-    video.srcObject = stream;
-    document.getElementById('start-msg').style.display = 'none';
-    resizeCanvas();
-    requestAnimationFrame(loop);
-  } catch(e) {
-    document.getElementById('start-msg').innerHTML =
-      `<h2 style="color:var(--red)">Camera Error</h2>
-       <p>${e.message}</p>
-       <p style="margin-top:10px;color:#555;font-size:0.65rem">Open this page directly in Safari, not inside another app.</p>`;
+// ─── Generate 15-min bars (5 days) ───────────────────────────
+function genDay(dateStr, open, close, hi, lo, vol) {
+  S = 54321; // reset seed per day for consistency
+  const bars = [], N = 26;
+  let cur = open;
+  for (let i = 0; i < N; i++) {
+    const prog = i / (N - 1);
+    const target = open + (close - open) * prog;
+    const trend = (target - cur) * 0.28;
+    const noise = (rng() - 0.5) * 2.8;
+    const o = +cur.toFixed(2);
+    const rawC = cur + trend + noise;
+    const c = +Math.max(lo + .05, Math.min(hi - .05, rawC)).toFixed(2);
+    cur = c;
+    const mins = 570 + i * 15;
+    const label = `D${dateStr} ${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`;
+    bars.push({ label, close: c });
   }
-});
-
-document.getElementById('auto-btn').addEventListener('click', () => {
-  locked = false; lockedCard = null;
-  document.getElementById('auto-btn').classList.add('active');
-  document.getElementById('lock-btn').classList.remove('locked');
-  document.getElementById('lock-btn').textContent = '⬛ LOCK';
-});
-
-document.getElementById('lock-btn').addEventListener('click', () => {
-  if (smoothCard) {
-    locked = true; lockedCard = {...smoothCard};
-    document.getElementById('lock-btn').classList.add('locked');
-    document.getElementById('lock-btn').textContent = '✓ LOCKED';
-  }
-});
-
-function resizeCanvas() {
-  overlay.width  = wrap.clientWidth;
-  overlay.height = wrap.clientHeight;
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
-
-// --- Main loop ---
-let frameCount = 0;
-function loop() {
-  requestAnimationFrame(loop);
-  frameCount++;
-  if (!locked && video.readyState === 4 && frameCount % 5 === 0) detectCard();
-  const card = locked ? lockedCard : smoothCard;
-  drawOverlay(card);
-  if (card) updateStats(card);
-}
-
-// --- Pure JS card detection ---
-// Downscale frame, find brightest rectangular region vs dark background
-function detectCard() {
-  try { pctx.drawImage(video, 0, 0, PW, PH); }
-  catch(e) { return; }
-
-  const imgData = pctx.getImageData(0, 0, PW, PH);
-  const data = imgData.data;
-
-  // Convert to grayscale + threshold to find bright areas (card is brighter than dark bg)
-  const gray = new Uint8Array(PW * PH);
-  for (let i = 0; i < PW * PH; i++) {
-    gray[i] = (data[i*4]*77 + data[i*4+1]*150 + data[i*4+2]*29) >> 8;
-  }
-
-  // Find bounding box of bright pixels using projection
-  // Threshold: anything above 60 brightness counts as "card"
-  const THRESH = 55;
-
-  // Horizontal projection: for each row, count bright pixels
-  // Vertical projection: for each col, count bright pixels
-  const rowBright = new Float32Array(PH);
-  const colBright = new Float32Array(PW);
-
-  for (let y = 0; y < PH; y++) {
-    let cnt = 0;
-    for (let x = 0; x < PW; x++) {
-      if (gray[y * PW + x] > THRESH) cnt++;
-    }
-    rowBright[y] = cnt / PW;
-  }
-  for (let x = 0; x < PW; x++) {
-    let cnt = 0;
-    for (let y = 0; y < PH; y++) {
-      if (gray[y * PW + x] > THRESH) cnt++;
-    }
-    colBright[x] = cnt / PH;
-  }
-
-  // Find edges: where projection crosses threshold of 0.3 (30% of scanline is bright)
-  const ROW_T = 0.25, COL_T = 0.25;
-
-  let top=-1, bot=-1, left=-1, right=-1;
-
-  for (let y = 0; y < PH; y++) {
-    if (rowBright[y] > ROW_T) { if (top < 0) top = y; bot = y; }
-  }
-  for (let x = 0; x < PW; x++) {
-    if (colBright[x] > COL_T) { if (left < 0) left = x; right = x; }
-  }
-
-  if (top < 0 || bot < 0 || left < 0 || right < 0) {
-    if (Date.now() - lastDetect > 1200) {
-      smoothCard = null;
-      statusBar.textContent = 'Searching — place card on dark surface';
-    }
-    return;
-  }
-
-  const cw = right - left;
-  const ch = bot - top;
-  if (cw < PW * 0.1 || ch < PH * 0.1) return; // too small
-
-  // Check aspect ratio is roughly card-shaped (0.5 to 0.95)
-  const ar = cw / ch;
-  if (ar < 0.45 || ar > 1.1) return;
-
-  // Scale up to overlay size
-  const sx = overlay.width  / PW;
-  const sy = overlay.height / PH;
-
-  const n = { x: left*sx, y: top*sy, w: cw*sx, h: ch*sy };
-
-  if (!smoothCard) {
-    smoothCard = {...n};
-  } else {
-    smoothCard.x = lerp(smoothCard.x, n.x, SMOOTH);
-    smoothCard.y = lerp(smoothCard.y, n.y, SMOOTH);
-    smoothCard.w = lerp(smoothCard.w, n.w, SMOOTH);
-    smoothCard.h = lerp(smoothCard.h, n.h, SMOOTH);
-  }
-  lastDetect = Date.now();
-  statusBar.textContent = `Card detected · AR ${ar.toFixed(2)}`;
+  bars[N-1].close = close;
+  return bars;
 }
 
-// --- Draw overlay ---
-function drawOverlay(card) {
-  const W = overlay.width, H = overlay.height;
-  ctx.clearRect(0, 0, W, H);
+const allBars = [
+  ...genDay(1, 630.5, 638.0, 643.5, 628.86, 170000),
+  ...genDay(2, 637.8, 649.5, 655.0, 634.0,  250000),
+  ...genDay(3, 649.0, 656.8, 658.52, 646.0, 360000),
+  ...genDay(4, 656.0, 651.0, 658.0, 645.0,  200000),
+  ...genDay(5, 651.5, 654.79,658.0, 648.0,  195000),
+];
 
-  if (!card) {
-    // Scanning animation
-    const scanY = ((Date.now()/1500) % 1) * H;
-    ctx.strokeStyle = 'rgba(255,204,0,0.1)';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(0, scanY); ctx.lineTo(W, scanY); ctx.stroke();
-    // Guide box
-    ctx.strokeStyle = 'rgba(255,204,0,0.18)';
-    ctx.setLineDash([6,6]); ctx.lineWidth = 1.5;
-    ctx.strokeRect(W*0.08, H*0.04, W*0.84, H*0.88);
-    ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(255,204,0,0.5)';
-    ctx.font = '11px "Share Tech Mono"'; ctx.textAlign = 'center';
-    ctx.fillText('Position card in frame', W/2, H/2);
-    return;
+const labels = allBars.map(b => b.label);
+const prices = allBars.map(b => b.close);
+
+// ─── Indicator helpers ────────────────────────────────────────
+function emaArr(data, period) {
+  const k = 2 / (period + 1);
+  let v = data[0];
+  return data.map((d, i) => { v = i === 0 ? d : d * k + v * (1 - k); return +v.toFixed(3); });
+}
+
+function emaRaw(data, period) {
+  const k = 2 / (period + 1);
+  let v = data[0];
+  return data.map((d, i) => { v = i === 0 ? d : d * k + v * (1 - k); return v; });
+}
+
+function computeTSI(longP, shortP, sigP) {
+  const pc  = prices.map((c, i) => i === 0 ? 0 : c - prices[i-1]);
+  const apc = pc.map(Math.abs);
+  const ds  = emaRaw(emaRaw(pc, longP), shortP);
+  const ads = emaRaw(emaRaw(apc, longP), shortP);
+  const tsi = ds.map((v, i) => ads[i] === 0 ? 0 : 100 * v / ads[i]);
+  const sig = emaRaw(tsi, sigP);
+  return { tsi, sig };
+}
+
+function computeRSI(period) {
+  let ag = 0, al = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = prices[i] - prices[i-1];
+    if (d > 0) ag += d; else al -= d;
   }
-
-  const {x, y, w: cw, h: ch} = card;
-
-  // Dim outside
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(0, 0, W, y);
-  ctx.fillRect(0, y+ch, W, H-(y+ch));
-  ctx.fillRect(0, y, x, ch);
-  ctx.fillRect(x+cw, y, W-(x+cw), ch);
-
-  // Grade colour
-  const worst = getWorstRatio(card);
-  const bc = worst<=1.22?'#00ff88':worst<=1.5?'#aaff00':worst<=1.86?'#ffcc00':'#ff6600';
-
-  // Glow border
-  ctx.strokeStyle = bc; ctx.lineWidth = 2.5;
-  ctx.shadowColor = bc; ctx.shadowBlur = 12;
-  ctx.strokeRect(x, y, cw, ch); ctx.shadowBlur = 0;
-
-  // Corner brackets
-  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
-  [[x,y,1,1],[x+cw,y,-1,1],[x,y+ch,1,-1],[x+cw,y+ch,-1,-1]].forEach(([px,py,dx,dy]) => {
-    ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+dx*22,py); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px,py+dy*22); ctx.stroke();
+  ag /= period; al /= period;
+  return prices.map((_, i) => {
+    if (i > period) {
+      const d = prices[i] - prices[i-1];
+      ag = (ag * (period-1) + Math.max(0, d)) / period;
+      al = (al * (period-1) + Math.max(0,-d)) / period;
+    }
+    if (i < period) return 50;
+    return +(100 - 100 / (1 + (al === 0 ? 100 : ag / al))).toFixed(2);
   });
-
-  // Crosshair
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.setLineDash([4,5]); ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(x+cw/2,y); ctx.lineTo(x+cw/2,y+ch); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x,y+ch/2); ctx.lineTo(x+cw,y+ch/2); ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Edge lines cyan/orange
-  ctx.strokeStyle='#00cfff'; ctx.lineWidth=1.5; ctx.shadowColor='#00cfff'; ctx.shadowBlur=5;
-  ctx.beginPath(); ctx.moveTo(0,y);    ctx.lineTo(W,y);    ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0,y+ch); ctx.lineTo(W,y+ch); ctx.stroke();
-  ctx.strokeStyle='#ff6600'; ctx.shadowColor='#ff6600';
-  ctx.beginPath(); ctx.moveTo(x,0);    ctx.lineTo(x,H);    ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x+cw,0); ctx.lineTo(x+cw,H); ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  // Frame center reference
-  ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.setLineDash([3,8]); ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
-  ctx.setLineDash([]);
 }
 
-function getWorstRatio(card) {
-  const {x,y,w:cw,h:ch}=card, W=overlay.width, H=overlay.height;
-  const lB=x, rB=W-(x+cw), tB=y, bB=H-(y+ch);
-  const lr = Math.min(lB,rB)>2 ? Math.max(lB,rB)/Math.min(lB,rB) : 99;
-  const tb = Math.min(tB,bB)>2 ? Math.max(tB,bB)/Math.min(tB,bB) : 99;
-  return Math.max(lr,tb);
+// ─── Compute signals ──────────────────────────────────────────
+function computeSignals(tsiLong, tsiShort, tsiSig, rsiPeriod, rsiMid) {
+  const e7   = emaArr(prices, 7);
+  const e21  = emaArr(prices, 21);
+  const e50  = emaArr(prices, 50);
+  const e200 = emaArr(prices, 200);
+  const { tsi, sig } = computeTSI(tsiLong, tsiShort, tsiSig);
+  const rsi  = computeRSI(rsiPeriod);
+
+  const longPts = [], exitPts = [];
+  let bullBars = 0;
+  const warmup = Math.max(tsiLong + tsiShort, rsiPeriod, 200) + 5;
+
+  const isBull = i => e7[i] > e21[i] && prices[i] > e21[i] && rsi[i] >= rsiMid - 5 && tsi[i] > sig[i];
+
+  for (let i = 1; i < prices.length; i++) {
+    if (isBull(i)) bullBars++;
+    if (i < warmup) continue;
+
+    const tsiCrossUp   = tsi[i-1] <= sig[i-1] && tsi[i] > sig[i];
+    const tsiCrossDown = tsi[i-1] >= sig[i-1] && tsi[i] < sig[i];
+    const e7CrossDown  = e7[i-1] >= e21[i-1]  && e7[i]  < e21[i];
+
+    const longEntry = e7[i] > e21[i] && prices[i] > e21[i] && tsiCrossUp && rsi[i] >= rsiMid - 5;
+    const exitFire  = tsiCrossDown || prices[i] < e21[i] || rsi[i] < rsiMid + 5 || e7CrossDown;
+
+    if (longEntry) longPts.push({ x: labels[i], y: prices[i] });
+    if (exitFire && !longEntry) exitPts.push({ x: labels[i], y: prices[i] });
+  }
+
+  return { e7, e21, e50, e200, tsi, sig, rsi, longPts, exitPts, bullBars };
 }
 
-function updateStats(card) {
-  const {x,y,w:cw,h:ch}=card, W=overlay.width, H=overlay.height;
-  const lB=x, rB=W-(x+cw), tB=y, bB=H-(y+ch);
-  const lrR=Math.min(lB,rB)>2?Math.max(lB,rB)/Math.min(lB,rB):99;
-  const tbR=Math.min(tB,bB)>2?Math.max(tB,bB)/Math.min(tB,bB):99;
+// ─── Chart setup ─────────────────────────────────────────────
+const GRID = 'rgba(255,255,255,0.04)';
+const baseOpts = (min, max, yLabel) => ({
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: { duration: 250 },
+  interaction: { mode: 'index', intersect: false },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: '#1a1a1a',
+      borderColor: '#333',
+      borderWidth: 1,
+      titleColor: '#888',
+      bodyColor: '#ddd',
+      titleFont: { size: 10 },
+      bodyFont: { size: 11 },
+      callbacks: { label: ctx => ` ${ctx.dataset.label}: ${(+ctx.parsed.y).toFixed(2)}` }
+    }
+  },
+  scales: {
+    x: {
+      ticks: {
+        color: '#444',
+        font: { size: 9 },
+        maxTicksLimit: 15,
+        maxRotation: 0,
+        callback: (val, idx) => {
+          const l = labels[idx];
+          if (!l) return '';
+          if (l.includes('09:30')) return l.replace('09:30','Open');
+          if (l.includes('12:45')) return l.split(' ')[1];
+          return '';
+        }
+      },
+      grid: { color: GRID }
+    },
+    y: {
+      min, max,
+      ticks: { color: '#555', font: { size: 10 }, callback: v => yLabel ? `${v.toFixed(0)}` : v.toFixed(1) },
+      grid: { color: GRID }
+    }
+  }
+});
 
-  function pct(a,b){ const t=a+b; return t?`${Math.round(a/t*100)}/${Math.round(b/t*100)}`:'—'; }
+let priceChart, tsiChart, rsiChart;
 
-  document.getElementById('lr-val').textContent   = pct(lB,rB);
-  document.getElementById('tb-val').textContent   = pct(tB,bB);
-  document.getElementById('lr-ratio').textContent = lrR.toFixed(2)+':1';
-  document.getElementById('tb-ratio').textContent = tbR.toFixed(2)+':1';
-  document.getElementById('lr-bar').style.width   = ((x+cw/2)/W*100)+'%';
-  document.getElementById('tb-bar').style.width   = ((y+ch/2)/H*100)+'%';
+function buildCharts(d) {
+  // ── Price chart ──
+  const priceData = {
+    labels,
+    datasets: [
+      { label: 'Price',  data: prices,  borderColor: '#ffffff', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+      { label: 'EMA 7',  data: d.e7,    borderColor: '#ce93d8', borderWidth: 1,   pointRadius: 0, tension: 0.3 },
+      { label: 'EMA 21', data: d.e21,   borderColor: '#00e5ff', borderWidth: 1,   pointRadius: 0, tension: 0.3 },
+      { label: 'EMA 50', data: d.e50,   borderColor: '#ffa726', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+      { label: 'EMA 200',data: d.e200,  borderColor: '#ff1744', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+      {
+        label: 'Long', data: d.longPts, borderColor: 'transparent', backgroundColor: '#00e676',
+        pointRadius: 8, pointStyle: 'triangle', pointHoverRadius: 10,
+        showLine: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' }
+      },
+      {
+        label: 'Exit', data: d.exitPts, borderColor: 'transparent', backgroundColor: '#ff1744',
+        pointRadius: 8, pointStyle: 'triangle', pointHoverRadius: 10, rotation: 180,
+        showLine: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' }
+      },
+    ]
+  };
 
-  const worst = Math.max(lrR,tbR);
-  let grade,color,desc;
-  if      (worst<=1.22){grade='10';color='#00ff88';desc='PSA 10 territory 🔥';}
-  else if (worst<=1.50){grade='9'; color='#aaff00';desc='Strong PSA 9';}
-  else if (worst<=1.86){grade='8'; color='#ffcc00';desc='Likely PSA 8';}
-  else if (worst<=2.33){grade='7'; color='#ff8800';desc='PSA 7 range';}
-  else                 {grade='6↓';color='#ff2244';desc='Off-center';}
+  const pMin = Math.floor(Math.min(...prices) - 2);
+  const pMax = Math.ceil(Math.max(...prices) + 2);
 
-  const g=document.getElementById('grade-val');
-  g.textContent=grade; g.style.color=color;
-  document.getElementById('grade-desc').textContent=desc;
+  if (priceChart) {
+    priceChart.data = priceData;
+    priceChart.options.scales.y.min = pMin;
+    priceChart.options.scales.y.max = pMax;
+    priceChart.update();
+  } else {
+    priceChart = new Chart(document.getElementById('priceChart'), {
+      type: 'line',
+      data: priceData,
+      options: { ...baseOpts(pMin, pMax, true), scales: { ...baseOpts(pMin, pMax, true).scales, y: { ...baseOpts(pMin, pMax, true).scales.y, ticks: { color: '#555', font: { size: 10 }, callback: v => '$' + v.toFixed(0) } } } }
+    });
+  }
+
+  // ── TSI chart ──
+  const tsiMin = Math.floor(Math.min(...d.tsi, ...d.sig) - 5);
+  const tsiMax = Math.ceil(Math.max(...d.tsi, ...d.sig) + 5);
+  const tsiData = {
+    labels,
+    datasets: [
+      { label: 'TSI',    data: d.tsi, borderColor: '#42a5f5', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+      { label: 'Signal', data: d.sig, borderColor: '#ffb300', borderWidth: 1.5, borderDash: [5,3], pointRadius: 0, tension: 0.3 },
+      { label: 'Zero',   data: prices.map(() => 0), borderColor: '#444', borderWidth: 1, pointRadius: 0, borderDash: [2,4] }
+    ]
+  };
+
+  if (tsiChart) {
+    tsiChart.data = tsiData;
+    tsiChart.options.scales.y.min = tsiMin;
+    tsiChart.options.scales.y.max = tsiMax;
+    tsiChart.update();
+  } else {
+    tsiChart = new Chart(document.getElementById('tsiChart'), { type: 'line', data: tsiData, options: baseOpts(tsiMin, tsiMax) });
+  }
+
+  // ── RSI chart ──
+  const mid = parseInt(document.getElementById('s-rsi-mid').value);
+  const rsiData = {
+    labels,
+    datasets: [
+      { label: 'RSI',          data: d.rsi,                      borderColor: '#42a5f5', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+      { label: '70 overbought',data: prices.map(() => 70),       borderColor: '#ff1744', borderWidth: 1,   pointRadius: 0, borderDash: [4,3] },
+      { label: 'Midline',      data: prices.map(() => mid),      borderColor: '#555',    borderWidth: 1,   pointRadius: 0, borderDash: [2,4] },
+      { label: '30 oversold',  data: prices.map(() => 30),       borderColor: '#00e676', borderWidth: 1,   pointRadius: 0, borderDash: [4,3] },
+    ]
+  };
+
+  if (rsiChart) {
+    rsiChart.data = rsiData;
+    rsiChart.update();
+  } else {
+    rsiChart = new Chart(document.getElementById('rsiChart'), { type: 'line', data: rsiData, options: baseOpts(0, 100) });
+  }
+
+  // ── Stats ──
+  document.getElementById('stat-long').textContent = d.longPts.length;
+  document.getElementById('stat-exit').textContent = d.exitPts.length;
+  document.getElementById('stat-bull').textContent = d.bullBars;
+  document.getElementById('stat-rsi').textContent  = d.rsi[d.rsi.length - 1].toFixed(1);
 }
-</script></body>
+
+// ─── Wire sliders ─────────────────────────────────────────────
+function getParams() {
+  return {
+    rsiPeriod: +document.getElementById('s-rsi-period').value,
+    tsiLong:   +document.getElementById('s-tsi-long').value,
+    tsiShort:  +document.getElementById('s-tsi-short').value,
+    tsiSig:    +document.getElementById('s-tsi-signal').value,
+    rsiMid:    +document.getElementById('s-rsi-mid').value,
+  };
+}
+
+['s-rsi-period','s-tsi-long','s-tsi-short','s-tsi-signal','s-rsi-mid'].forEach(id => {
+  const el = document.getElementById(id);
+  const valId = id.replace('s-', 'v-');
+  el.addEventListener('input', () => {
+    document.getElementById(valId).textContent = el.value;
+    const p = getParams();
+    buildCharts(computeSignals(p.tsiLong, p.tsiShort, p.tsiSig, p.rsiPeriod, p.rsiMid));
+  });
+});
+
+// Initial render
+const p = getParams();
+buildCharts(computeSignals(p.tsiLong, p.tsiShort, p.tsiSig, p.rsiPeriod, p.rsiMid));
+</script>
+</body>
 </html>
