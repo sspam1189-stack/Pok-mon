@@ -228,13 +228,12 @@
       <span class="leg"><span class="leg-line" style="background:var(--orange)"></span>EMA 50</span>
       <span class="leg"><span class="leg-line" style="background:rgba(0,230,118,.4);height:6px"></span>Support</span>
       <span class="leg"><span class="leg-line" style="background:rgba(255,23,68,.4);height:6px"></span>Resistance</span>
-      <span class="leg"><span class="leg-line" style="background:var(--amber);height:2px;border-top:2px dashed var(--amber);background:none"></span>Trend</span>
       <span class="leg"><span class="leg-line" style="background:rgba(206,147,216,.2);height:6px"></span>Bollinger</span>
       <span class="leg"><span class="leg-line" style="background:var(--amber);border-top:2px dotted var(--amber);background:none"></span>VWAP</span>
       <span class="leg"><span class="leg-line" style="background:rgba(0,229,255,.3);height:6px"></span>Projected Range</span>
     </div>
   </div>
-  <div style="position:relative;height:340px"><canvas id="priceChart"></canvas></div>
+  <div style="position:relative;height:500px"><canvas id="priceChart"></canvas></div>
 </div>
 
 <div class="chart-wrap">
@@ -531,112 +530,6 @@ function clusterLevels(levels, threshold) {
 }
 
 // ─── Trend line detection ───────────────────────────────────
-function findTrendLines(bars, lookback) {
-  const curPrice = bars[bars.length - 1].close;
-  const lb = bars.length > 100 ? 2 : Math.max(2, Math.min(lookback, 3));
-
-  const swingHighs = [], swingLows = [];
-  for (let i = lb; i < bars.length - lb; i++) {
-    let isHigh = true, isLow = true;
-    for (let j = 1; j <= lb; j++) {
-      if (bars[i].high < bars[i - j].high || bars[i].high < bars[i + j].high) isHigh = false;
-      if (bars[i].low > bars[i - j].low || bars[i].low > bars[i + j].low) isLow = false;
-    }
-    if (isHigh) swingHighs.push({ idx: i, price: bars[i].high });
-    if (isLow) swingLows.push({ idx: i, price: bars[i].low });
-  }
-
-  // Fallback: simple 1-bar peaks
-  if (swingHighs.length < 2) {
-    for (let i = 1; i < bars.length - 1; i++) {
-      if (bars[i].high > bars[i-1].high && bars[i].high > bars[i+1].high)
-        if (!swingHighs.some(s => s.idx === i)) swingHighs.push({ idx: i, price: bars[i].high });
-    }
-  }
-  if (swingLows.length < 2) {
-    for (let i = 1; i < bars.length - 1; i++) {
-      if (bars[i].low < bars[i-1].low && bars[i].low < bars[i+1].low)
-        if (!swingLows.some(s => s.idx === i)) swingLows.push({ idx: i, price: bars[i].low });
-    }
-  }
-
-  const lines = [];
-  const minDist = Math.max(5, Math.floor(bars.length * 0.1));
-  const lastIdx = bars.length - 1;
-
-  // Resistance: connect swing highs, line must be ABOVE current price at lastIdx
-  if (swingHighs.length >= 2) {
-    let bestPts = null, bestScore = -Infinity;
-    for (let a = 0; a < swingHighs.length - 1; a++) {
-      for (let b = a + 1; b < swingHighs.length; b++) {
-        const p1 = swingHighs[a], p2 = swingHighs[b];
-        if (p2.idx - p1.idx < minDist) continue;
-        const slope = (p2.price - p1.price) / (p2.idx - p1.idx);
-        const priceAtEnd = p1.price + slope * (lastIdx - p1.idx);
-        // Must be above current price
-        if (priceAtEnd <= curPrice) continue;
-        // Most bars should be below or touching the line (valid resistance)
-        let violations = 0;
-        for (let k = p1.idx; k <= lastIdx; k++) {
-          if (bars[k].high > p1.price + slope * (k - p1.idx) + 0.5) violations++;
-        }
-        if (violations > (lastIdx - p1.idx) * 0.3) continue;
-        const spacing = p2.idx - p1.idx;
-        const recency = (p1.idx + p2.idx) / 2 / lastIdx;
-        const closeness = 1 / (1 + Math.abs(priceAtEnd - curPrice)); // prefer closer to price
-        const score = spacing * 0.3 + recency * 20 + closeness * 50;
-        if (score > bestScore) { bestScore = score; bestPts = [p1, p2]; }
-      }
-    }
-    if (bestPts) {
-      const slope = (bestPts[1].price - bestPts[0].price) / (bestPts[1].idx - bestPts[0].idx);
-      lines.push({
-        startIdx: bestPts[0].idx, startPrice: bestPts[0].price,
-        endIdx: lastIdx,
-        endPrice: bestPts[0].price + slope * (lastIdx - bestPts[0].idx),
-        type: 'resistance'
-      });
-    }
-  }
-
-  // Support: connect swing lows, line must be BELOW current price at lastIdx
-  if (swingLows.length >= 2) {
-    let bestPts = null, bestScore = -Infinity;
-    for (let a = 0; a < swingLows.length - 1; a++) {
-      for (let b = a + 1; b < swingLows.length; b++) {
-        const p1 = swingLows[a], p2 = swingLows[b];
-        if (p2.idx - p1.idx < minDist) continue;
-        const slope = (p2.price - p1.price) / (p2.idx - p1.idx);
-        const priceAtEnd = p1.price + slope * (lastIdx - p1.idx);
-        // Must be below current price
-        if (priceAtEnd >= curPrice) continue;
-        // Most bars should be above or touching the line (valid support)
-        let violations = 0;
-        for (let k = p1.idx; k <= lastIdx; k++) {
-          if (bars[k].low < p1.price + slope * (k - p1.idx) - 0.5) violations++;
-        }
-        if (violations > (lastIdx - p1.idx) * 0.3) continue;
-        const spacing = p2.idx - p1.idx;
-        const recency = (p1.idx + p2.idx) / 2 / lastIdx;
-        const closeness = 1 / (1 + Math.abs(curPrice - priceAtEnd));
-        const score = spacing * 0.3 + recency * 20 + closeness * 50;
-        if (score > bestScore) { bestScore = score; bestPts = [p1, p2]; }
-      }
-    }
-    if (bestPts) {
-      const slope = (bestPts[1].price - bestPts[0].price) / (bestPts[1].idx - bestPts[0].idx);
-      lines.push({
-        startIdx: bestPts[0].idx, startPrice: bestPts[0].price,
-        endIdx: lastIdx,
-        endPrice: bestPts[0].price + slope * (lastIdx - bestPts[0].idx),
-        type: 'support'
-      });
-    }
-  }
-
-  return lines;
-}
-
 // ─── Chart globals ──────────────────────────────────────────
 const GRID = 'rgba(255,255,255,0.04)';
 let priceChart, tsiChart, rsiChart, volChart, macdChart, atrChart;
@@ -743,20 +636,23 @@ function buildAll() {
   renderLevels(supBelow, document.getElementById('support-levels'), 'below');
   renderLevels(resAbove, document.getElementById('resistance-levels'), 'above');
 
-  // ── Build S/R annotations ──
+  // ── Build S/R zone annotations (±1% bands, not thin lines) ──
   const annotations = {};
+  const zonePct = 0.01; // ±1% zone width
   supBelow.slice(0, 3).forEach((s, i) => {
+    const half = s.price * zonePct;
     annotations['sup' + i] = {
-      type: 'box', yMin: s.price - 0.5, yMax: s.price + 0.5,
-      backgroundColor: 'rgba(0,230,118,0.08)', borderColor: 'rgba(0,230,118,0.3)', borderWidth: 1,
-      label: { display: true, content: 'S $' + s.price.toFixed(0), position: 'start', color: 'rgba(0,230,118,.6)', font: { size: 9 } }
+      type: 'box', yMin: s.price - half, yMax: s.price + half,
+      backgroundColor: 'rgba(0,230,118,0.06)', borderColor: 'rgba(0,230,118,0.25)', borderWidth: 1,
+      label: { display: true, content: `S $${(s.price - half).toFixed(0)}–${(s.price + half).toFixed(0)}`, position: 'start', color: 'rgba(0,230,118,.6)', font: { size: 9 } }
     };
   });
   resAbove.slice(0, 3).forEach((r, i) => {
+    const half = r.price * zonePct;
     annotations['res' + i] = {
-      type: 'box', yMin: r.price - 0.5, yMax: r.price + 0.5,
-      backgroundColor: 'rgba(255,23,68,0.08)', borderColor: 'rgba(255,23,68,0.3)', borderWidth: 1,
-      label: { display: true, content: 'R $' + r.price.toFixed(0), position: 'start', color: 'rgba(255,23,68,.6)', font: { size: 9 } }
+      type: 'box', yMin: r.price - half, yMax: r.price + half,
+      backgroundColor: 'rgba(255,23,68,0.06)', borderColor: 'rgba(255,23,68,0.25)', borderWidth: 1,
+      label: { display: true, content: `R $${(r.price - half).toFixed(0)}–${(r.price + half).toFixed(0)}`, position: 'start', color: 'rgba(255,23,68,.6)', font: { size: 9 } }
     };
   });
 
@@ -1037,36 +933,7 @@ function buildAll() {
 
   // Extend labels and datasets with nulls for real data, values for projection
   const projLen = projLabels.length;
-  // ── Trend lines (extended into projection zone) ──
   const allLabels = [...labels, ...projLabels];
-  const trendLines = findTrendLines(BARS, lookback);
-  trendLines.forEach((tl, i) => {
-    const color = tl.type === 'support' ? 'rgba(0,230,118,0.7)' : 'rgba(255,23,68,0.7)';
-    const slope = (tl.endPrice - tl.startPrice) / (tl.endIdx - tl.startIdx);
-    // Extend to end of projection
-    const extEndIdx = labels.length + projLen - 1;
-    const extEndPrice = tl.startPrice + slope * (extEndIdx - tl.startIdx);
-    annotations['trend' + i] = {
-      type: 'line',
-      xMin: tl.startIdx,
-      xMax: extEndIdx,
-      xScaleID: 'x',
-      yMin: tl.startPrice,
-      yMax: extEndPrice,
-      borderColor: color,
-      borderWidth: 2,
-      borderDash: [6, 3],
-      label: {
-        display: true,
-        content: (tl.type === 'support' ? 'S trend → $' : 'R trend → $') + extEndPrice.toFixed(0),
-        position: 'end',
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        color: color,
-        font: { size: 9 },
-        padding: 3
-      }
-    };
-  });
 
   const padded = (arr) => [...arr, ...Array(projLen).fill(null)];
   const projPadded = (arr) => [...Array(prices.length - 1).fill(null), prices[prices.length - 1], ...arr]; // connect from last real price
