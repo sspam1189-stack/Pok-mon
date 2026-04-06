@@ -6,6 +6,8 @@
 <title>SPY Weekly Options — Support & Resistance</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
   :root{
@@ -91,10 +93,21 @@
   .loading p{color:var(--muted);font-size:13px;}
   .error-msg{background:var(--red-dim);border:1px solid rgba(255,23,68,.3);border-radius:var(--card-radius);padding:16px;color:var(--red);margin:20px 0;font-size:13px;}
 
+  /* Projection day cards */
+  .proj-day{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;}
+  .proj-day .day-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;}
+  .proj-day .day-date{font-size:12px;color:#888;margin-bottom:8px;}
+  .proj-day .day-mid{font-size:1.2rem;font-weight:700;color:var(--cyan);margin-bottom:4px;}
+  .proj-day .day-range{font-size:11px;color:var(--muted);}
+  .proj-day .day-change{font-size:11px;margin-top:4px;font-weight:600;}
+  .proj-day .day-change.up{color:var(--green);}
+  .proj-day .day-change.down{color:var(--red);}
+
   @media(max-width:640px){
     body{padding:12px;}
     .stats-row{grid-template-columns:1fr 1fr;}
     .sr-grid,.rules-row{grid-template-columns:1fr;}
+    #proj-days{grid-template-columns:repeat(3,1fr)!important;}
     .slider-row{gap:6px;padding:10px 12px;}
   }
 </style>
@@ -103,7 +116,23 @@
 
 <div class="header">
   <h1>SPY Weekly Options <span class="live-dot"></span></h1>
-  <p class="subtitle">Support & Resistance · Daily chart with TSI + RSI + EMAs · Live data</p>
+  <p class="subtitle">Support & Resistance · TSI + RSI + EMAs · <span id="last-update"></span></p>
+  <div style="display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
+    <div id="timeframe-tabs" style="display:flex;gap:0;border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+      <button class="tf-tab" data-interval="15m" data-range="5d" style="padding:5px 14px;font-size:12px;border:none;cursor:pointer;background:var(--panel);color:var(--muted);">15 Min</button>
+      <button class="tf-tab" data-interval="60m" data-range="1mo" style="padding:5px 14px;font-size:12px;border:none;border-left:1px solid var(--border);cursor:pointer;background:var(--panel);color:var(--muted);">1 Hour</button>
+      <button class="tf-tab active" data-interval="1d" data-range="1mo" style="padding:5px 14px;font-size:12px;border:none;border-left:1px solid var(--border);cursor:pointer;background:var(--cyan);color:#000;font-weight:600;">1 Day</button>
+    </div>
+    <span style="font-size:11px;color:var(--muted);">Auto-refresh:</span>
+    <select id="refresh-interval" style="background:var(--panel);color:#fff;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;">
+      <option value="0">Off</option>
+      <option value="1800000" selected>30 min</option>
+      <option value="3600000">1 hour</option>
+      <option value="86400000">Daily</option>
+    </select>
+    <button id="refresh-now" style="background:var(--panel);color:var(--cyan);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;">Refresh Now</button>
+    <button id="reset-zoom" style="background:var(--panel);color:var(--amber);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;">Reset Zoom</button>
+  </div>
 </div>
 
 <div id="app-loading" class="loading">
@@ -124,6 +153,9 @@
   <div class="stat-card"><div class="label">RSI (14)</div><div class="value" id="stat-rsi" style="color:var(--amber)">—</div><div class="sub" id="stat-rsi-label"></div></div>
   <div class="stat-card"><div class="label">Nearest Support</div><div class="value" id="stat-support" style="color:var(--green)">—</div><div class="sub" id="stat-support-dist"></div></div>
   <div class="stat-card"><div class="label">Nearest Resistance</div><div class="value" id="stat-resist" style="color:var(--red)">—</div><div class="sub" id="stat-resist-dist"></div></div>
+  <div class="stat-card"><div class="label">ATR (Daily Range)</div><div class="value" id="stat-atr" style="color:var(--amber)">—</div><div class="sub" id="stat-atr-detail"></div></div>
+  <div class="stat-card"><div class="label">Convergence Signals</div><div class="value" id="stat-signals" style="color:var(--amber)">—</div><div class="sub" id="stat-signals-detail"></div></div>
+  <div class="stat-card"><div class="label">Weekly Expiry Target</div><div class="value" id="stat-proj" style="color:var(--cyan)">—</div><div class="sub" id="stat-proj-range"></div></div>
 </div>
 
 <div class="slider-row">
@@ -134,8 +166,8 @@
   </div>
   <div class="slider-group">
     <div class="slider-label">TSI Long</div>
-    <input type="range" id="s-tsi-long" min="5" max="50" value="25">
-    <div class="slider-val" id="v-tsi-long">25</div>
+    <input type="range" id="s-tsi-long" min="5" max="50" value="13">
+    <div class="slider-val" id="v-tsi-long">13</div>
   </div>
   <div class="slider-group">
     <div class="slider-label">TSI Short</div>
@@ -144,14 +176,48 @@
   </div>
   <div class="slider-group">
     <div class="slider-label">TSI Signal</div>
-    <input type="range" id="s-tsi-signal" min="2" max="25" value="7">
-    <div class="slider-val" id="v-tsi-signal">7</div>
+    <input type="range" id="s-tsi-signal" min="2" max="25" value="5">
+    <div class="slider-val" id="v-tsi-signal">5</div>
   </div>
   <div class="slider-group">
     <div class="slider-label">S/R Lookback</div>
     <input type="range" id="s-sr-lookback" min="3" max="10" value="5">
     <div class="slider-val" id="v-sr-lookback">5</div>
   </div>
+  <div class="slider-group">
+    <div class="slider-label">BB Period</div>
+    <input type="range" id="s-bb-period" min="5" max="30" value="20">
+    <div class="slider-val" id="v-bb-period">20</div>
+  </div>
+</div>
+
+<div class="chart-wrap" id="signal-panel" style="cursor:pointer" onclick="document.getElementById('signal-details').style.display=document.getElementById('signal-details').style.display==='none'?'block':'none';document.getElementById('signal-toggle').textContent=document.getElementById('signal-details').style.display==='none'?'+':'-'">
+  <div class="chart-header">
+    <div class="chart-title" style="display:flex;align-items:center;gap:8px;">Trade Signal <span id="signal-toggle" style="font-size:14px;color:var(--cyan);font-weight:700">+</span></div>
+    <div id="signal-verdict" style="font-size:1rem;font-weight:700;">—</div>
+  </div>
+  <div id="signal-details" style="display:none">
+    <div id="signal-reason" style="font-size:13px;color:var(--muted);margin:12px 0;line-height:1.5;"></div>
+    <div class="rules-row" style="margin-top:8px">
+      <div class="rule-card call-rules">
+        <h3>Weekly Call Conditions</h3>
+        <ul id="call-checks"></ul>
+        <div id="call-score" style="margin-top:10px;font-size:12px;font-weight:600;"></div>
+      </div>
+      <div class="rule-card put-rules">
+        <h3>Weekly Put Conditions</h3>
+        <ul id="put-checks"></ul>
+        <div id="put-score" style="margin-top:10px;font-size:12px;font-weight:600;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="chart-wrap" id="proj-breakdown">
+  <div class="chart-header">
+    <div class="chart-title">Day-by-Day Projection</div>
+  </div>
+  <div id="proj-days" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;"></div>
 </div>
 
 <div class="chart-wrap">
@@ -164,9 +230,20 @@
       <span class="leg"><span class="leg-line" style="background:var(--orange)"></span>EMA 50</span>
       <span class="leg"><span class="leg-line" style="background:rgba(0,230,118,.4);height:6px"></span>Support</span>
       <span class="leg"><span class="leg-line" style="background:rgba(255,23,68,.4);height:6px"></span>Resistance</span>
+      <span class="leg"><span class="leg-line" style="background:var(--amber);height:2px;border-top:2px dashed var(--amber);background:none"></span>Trend</span>
+      <span class="leg"><span class="leg-line" style="background:rgba(206,147,216,.2);height:6px"></span>Bollinger</span>
+      <span class="leg"><span class="leg-line" style="background:var(--amber);border-top:2px dotted var(--amber);background:none"></span>VWAP</span>
+      <span class="leg"><span class="leg-line" style="background:rgba(0,229,255,.3);height:6px"></span>Projected Range</span>
     </div>
   </div>
   <div style="position:relative;height:340px"><canvas id="priceChart"></canvas></div>
+</div>
+
+<div class="chart-wrap">
+  <div class="chart-header">
+    <div class="chart-title">Volume</div>
+  </div>
+  <div style="position:relative;height:100px"><canvas id="volChart"></canvas></div>
 </div>
 
 <div class="sr-grid" id="sr-grid">
@@ -187,6 +264,8 @@
       <span class="leg"><span class="leg-line" style="background:var(--blue)"></span>TSI</span>
       <span class="leg"><span class="leg-line" style="background:var(--amber)"></span>Signal</span>
       <span class="leg"><span class="leg-line" style="background:var(--muted)"></span>Zero</span>
+      <span class="leg"><span style="color:var(--green);font-size:10px">&#9650;</span>Cross Up</span>
+      <span class="leg"><span style="color:var(--red);font-size:10px">&#9660;</span>Cross Down</span>
     </div>
   </div>
   <div style="position:relative;height:160px"><canvas id="tsiChart"></canvas></div>
@@ -199,64 +278,124 @@
       <span class="leg"><span class="leg-line" style="background:var(--blue)"></span>RSI</span>
       <span class="leg"><span class="leg-line" style="background:var(--red)"></span>70</span>
       <span class="leg"><span class="leg-line" style="background:var(--green)"></span>30</span>
+      <span class="leg"><span style="color:var(--green);font-size:10px">&#9650;</span>Cross Up</span>
+      <span class="leg"><span style="color:var(--red);font-size:10px">&#9660;</span>Cross Down</span>
     </div>
   </div>
   <div style="position:relative;height:140px"><canvas id="rsiChart"></canvas></div>
 </div>
 
-<div class="rules-row">
-  <div class="rule-card call-rules">
-    <h3>Weekly Call Setup — look for all</h3>
-    <ul>
-      <li>Price near or bouncing off support level</li>
-      <li>RSI rising from oversold (&lt;35) or near midline</li>
-      <li>TSI crosses above signal line</li>
-      <li>EMA 7 above EMA 21 (short-term uptrend)</li>
-      <li>Price above EMA 21</li>
-    </ul>
+<div class="chart-wrap">
+  <div class="chart-header">
+    <div class="chart-title">MACD — Moving Average Convergence Divergence</div>
+    <div class="legend">
+      <span class="leg"><span class="leg-line" style="background:var(--blue)"></span>MACD</span>
+      <span class="leg"><span class="leg-line" style="background:var(--amber)"></span>Signal</span>
+      <span class="leg"><span class="leg-line" style="background:rgba(0,229,255,.4);height:8px"></span>Histogram</span>
+    </div>
   </div>
-  <div class="rule-card put-rules">
-    <h3>Weekly Put Setup — look for all</h3>
-    <ul>
-      <li>Price near or rejecting from resistance level</li>
-      <li>RSI falling from overbought (&gt;65) or weakening</li>
-      <li>TSI crosses below signal line</li>
-      <li>EMA 7 below EMA 21 (short-term downtrend)</li>
-      <li>Price below EMA 21</li>
-    </ul>
+  <div style="position:relative;height:140px"><canvas id="macdChart"></canvas></div>
+</div>
+
+<div class="chart-wrap">
+  <div class="chart-header">
+    <div class="chart-title">ATR — Average True Range (14)</div>
+    <div class="legend">
+      <span class="leg"><span class="leg-line" style="background:var(--amber)"></span>ATR</span>
+    </div>
   </div>
+  <div style="position:relative;height:100px"><canvas id="atrChart"></canvas></div>
 </div>
 
 </div><!-- /app-content -->
 
 <script>
+// ─── Zoom config (shared across all charts) ─────────────────
+const zoomPlugin = {
+  zoom: {
+    wheel: { enabled: true, modifierKey: null },
+    pinch: { enabled: true },
+    drag: { enabled: true, backgroundColor: 'rgba(0,229,255,0.1)', borderColor: 'rgba(0,229,255,0.4)', borderWidth: 1 },
+    mode: 'x',
+  },
+  pan: {
+    enabled: true,
+    mode: 'x',
+  }
+};
+
+// ─── Current timeframe state ────────────────────────────────
+let currentInterval = '1d';
+let currentRange = '1mo';
+
 // ─── Fetch real SPY data ────────────────────────────────────
 async function fetchSPY() {
-  const range = '3mo';
-  const interval = '1d';
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/SPY?range=${range}&interval=${interval}&includePrePost=false`;
-  const proxy = `https://corsproxy.io/?url=${encodeURIComponent(url)}`;
+  const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/SPY?range=${currentRange}&interval=${currentInterval}&includePrePost=false`;
 
-  const res = await fetch(proxy);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  const result = json.chart.result[0];
-  const ts = result.timestamp;
-  const q = result.indicators.quote[0];
-
-  const bars = [];
-  for (let i = 0; i < ts.length; i++) {
-    if (q.close[i] == null) continue;
-    bars.push({
-      date: new Date(ts[i] * 1000),
-      open: +q.open[i].toFixed(2),
-      high: +q.high[i].toFixed(2),
-      low: +q.low[i].toFixed(2),
-      close: +q.close[i].toFixed(2),
-      volume: q.volume[i]
-    });
+  async function tryAllOrigins() {
+    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const wrap = await res.json();
+    if (!wrap.contents || !wrap.contents.startsWith('{')) throw new Error('Bad contents from allorigins');
+    return JSON.parse(wrap.contents);
   }
-  return bars;
+  async function tryProxy(proxyUrl) {
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    if (!text.startsWith('{')) throw new Error('Non-JSON response');
+    return JSON.parse(text);
+  }
+
+  const yahooUrl2 = yahooUrl.replace('query1.finance', 'query2.finance');
+  const attempts = [
+    () => tryProxy(`https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl2)}`),
+    () => tryAllOrigins(),
+    () => tryProxy(`https://corsproxy.io/?url=${encodeURIComponent(yahooUrl2)}`),
+    () => tryProxy(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(yahooUrl2)}`),
+  ];
+
+  let lastErr;
+  for (const attempt of attempts) {
+    try {
+      const json = await attempt();
+      if (!json.chart || !json.chart.result) { lastErr = new Error('No chart data'); continue; }
+      const result = json.chart.result[0];
+      const ts = result.timestamp;
+      const q = result.indicators.quote[0];
+
+      const bars = [];
+      for (let i = 0; i < ts.length; i++) {
+        if (q.close[i] == null) continue;
+        bars.push({
+          date: new Date(ts[i] * 1000),
+          open: +q.open[i].toFixed(2),
+          high: +q.high[i].toFixed(2),
+          low: +q.low[i].toFixed(2),
+          close: +q.close[i].toFixed(2),
+          volume: q.volume[i]
+        });
+      }
+      // Trim 15m data to last 3 trading days + this week
+      if (currentInterval === '15m') {
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const daysBack = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        const cutoff = new Date(now);
+        cutoff.setDate(cutoff.getDate() - daysBack - 3);
+        cutoff.setHours(0,0,0,0);
+        return bars.filter(b => b.date >= cutoff);
+      }
+      // Trim hourly data to ~3 weeks
+      if (currentInterval === '60m') {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 21);
+        return bars.filter(b => b.date >= cutoff);
+      }
+      return bars;
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('All proxies failed');
 }
 
 // ─── Indicator helpers ──────────────────────────────────────
@@ -298,6 +437,47 @@ function computeRSI(prices, period) {
     if (i < period) return 50;
     return +(100 - 100 / (1 + (al === 0 ? 100 : ag / al))).toFixed(2);
   });
+}
+
+function computeBollinger(prices, period) {
+  return prices.map((_, i) => {
+    // Use available data progressively — start from bar 2 with whatever we have
+    const lookback = Math.min(period, i + 1);
+    if (lookback < 2) return { mid: prices[i], upper: prices[i], lower: prices[i] };
+    const slice = prices.slice(i - lookback + 1, i + 1);
+    const mean = slice.reduce((s, v) => s + v, 0) / lookback;
+    const variance = slice.reduce((s, v) => s + (v - mean) ** 2, 0) / lookback;
+    const std = Math.sqrt(variance);
+    return { mid: +mean.toFixed(2), upper: +(mean + 2 * std).toFixed(2), lower: +(mean - 2 * std).toFixed(2) };
+  });
+}
+
+function computeVWAP(bars) {
+  let cumVP = 0, cumVol = 0;
+  return bars.map(b => {
+    const tp = (b.high + b.low + b.close) / 3;
+    cumVP += tp * b.volume;
+    cumVol += b.volume;
+    return +(cumVP / cumVol).toFixed(2);
+  });
+}
+
+function computeMACD(prices) {
+  const ema12 = emaRaw(prices, 12);
+  const ema26 = emaRaw(prices, 26);
+  const macdLine = ema12.map((v, i) => v - ema26[i]);
+  const signalLine = emaRaw(macdLine, 9);
+  const histogram = macdLine.map((v, i) => v - signalLine[i]);
+  return { macdLine, signalLine, histogram };
+}
+
+function computeATR(bars, period) {
+  const trs = bars.map((b, i) => {
+    if (i === 0) return b.high - b.low;
+    return Math.max(b.high - b.low, Math.abs(b.high - bars[i-1].close), Math.abs(b.low - bars[i-1].close));
+  });
+  const atr = emaRaw(trs, period);
+  return atr.map(v => +v.toFixed(2));
 }
 
 // ─── Support / Resistance detection ─────────────────────────
@@ -353,13 +533,102 @@ function clusterLevels(levels, threshold) {
   return clusters.map(c => ({ price: +c.price.toFixed(2), type: c.type, strength: c.count }));
 }
 
+// ─── Trend line detection ───────────────────────────────────
+function findTrendLines(bars, lookback) {
+  // Adaptive lookback — smaller for intraday (more bars), larger for daily
+  const lb = bars.length > 100 ? 2 : Math.max(2, Math.min(lookback, 3));
+  // Minimum spacing between swing points (% of total bars)
+  const minSpacing = Math.max(3, Math.floor(bars.length * 0.05));
+
+  const swingHighs = [], swingLows = [];
+  for (let i = lb; i < bars.length - lb; i++) {
+    let isHigh = true, isLow = true;
+    for (let j = 1; j <= lb; j++) {
+      if (bars[i].high < bars[i - j].high || bars[i].high < bars[i + j].high) isHigh = false;
+      if (bars[i].low > bars[i - j].low || bars[i].low > bars[i + j].low) isLow = false;
+    }
+    if (isHigh) swingHighs.push({ idx: i, price: bars[i].high });
+    if (isLow) swingLows.push({ idx: i, price: bars[i].low });
+  }
+
+  // Fallback: simple 1-bar peaks
+  if (swingHighs.length < 2) {
+    for (let i = 1; i < bars.length - 1; i++) {
+      if (bars[i].high > bars[i-1].high && bars[i].high > bars[i+1].high)
+        if (!swingHighs.some(s => s.idx === i)) swingHighs.push({ idx: i, price: bars[i].high });
+    }
+  }
+  if (swingLows.length < 2) {
+    for (let i = 1; i < bars.length - 1; i++) {
+      if (bars[i].low < bars[i-1].low && bars[i].low < bars[i+1].low)
+        if (!swingLows.some(s => s.idx === i)) swingLows.push({ idx: i, price: bars[i].low });
+    }
+  }
+
+  const lines = [];
+
+  // Find best resistance trend line — connect 2 significant highs with good spacing
+  if (swingHighs.length >= 2) {
+    const minDist = Math.max(5, Math.floor(bars.length * 0.15)); // at least 15% of chart apart
+    let bestPts = null, bestScore = 0;
+    for (let a = 0; a < swingHighs.length - 1; a++) {
+      for (let b = a + 1; b < swingHighs.length; b++) {
+        const p1 = swingHighs[a], p2 = swingHighs[b];
+        if (p2.idx - p1.idx < minDist) continue;
+        // Score: prefer wider spacing, higher prices, more recent
+        const spacing = p2.idx - p1.idx;
+        const recency = (p1.idx + p2.idx) / 2 / bars.length; // 0-1, higher = more recent
+        const score = spacing * 0.4 + (p1.price + p2.price) * 0.01 + recency * 20;
+        if (score > bestScore) { bestScore = score; bestPts = [p1, p2]; }
+      }
+    }
+    if (bestPts) {
+      const slope = (bestPts[1].price - bestPts[0].price) / (bestPts[1].idx - bestPts[0].idx);
+      lines.push({
+        startIdx: bestPts[0].idx, startPrice: bestPts[0].price,
+        endIdx: bars.length - 1,
+        endPrice: bestPts[0].price + slope * (bars.length - 1 - bestPts[0].idx),
+        type: 'resistance'
+      });
+    }
+  }
+
+  // Find best support trend line
+  if (swingLows.length >= 2) {
+    const minDist = Math.max(5, Math.floor(bars.length * 0.15));
+    let bestPts = null, bestScore = 0;
+    for (let a = 0; a < swingLows.length - 1; a++) {
+      for (let b = a + 1; b < swingLows.length; b++) {
+        const p1 = swingLows[a], p2 = swingLows[b];
+        if (p2.idx - p1.idx < minDist) continue;
+        const spacing = p2.idx - p1.idx;
+        const recency = (p1.idx + p2.idx) / 2 / bars.length;
+        const score = spacing * 0.4 - (p1.price + p2.price) * 0.01 + recency * 20;
+        if (score > bestScore) { bestScore = score; bestPts = [p1, p2]; }
+      }
+    }
+    if (bestPts) {
+      const slope = (bestPts[1].price - bestPts[0].price) / (bestPts[1].idx - bestPts[0].idx);
+      lines.push({
+        startIdx: bestPts[0].idx, startPrice: bestPts[0].price,
+        endIdx: bars.length - 1,
+        endPrice: bestPts[0].price + slope * (bars.length - 1 - bestPts[0].idx),
+        type: 'support'
+      });
+    }
+  }
+
+  return lines;
+}
+
 // ─── Chart globals ──────────────────────────────────────────
 const GRID = 'rgba(255,255,255,0.04)';
-let priceChart, tsiChart, rsiChart;
+let priceChart, tsiChart, rsiChart, volChart, macdChart, atrChart;
 let BARS = [];
 
 function fmt(d) {
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (currentInterval === '1d') return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
 function buildAll() {
@@ -376,6 +645,12 @@ function buildAll() {
   const e50 = emaArr(prices, 50);
   const { tsi, sig } = computeTSI(prices, tsiLong, tsiShort, tsiSig);
   const rsi = computeRSI(prices, rsiPeriod);
+  const bbPeriod = +document.getElementById('s-bb-period').value;
+  const bb = computeBollinger(prices, bbPeriod);
+  const vwap = computeVWAP(BARS);
+  const { macdLine, signalLine, histogram } = computeMACD(prices);
+  const atr = computeATR(BARS, 14);
+  const volumes = BARS.map(b => b.volume);
 
   // S/R
   const swings = findSwingPoints(BARS, lookback);
@@ -416,6 +691,12 @@ function buildAll() {
   document.getElementById('stat-trend-detail').textContent = `${bullScore}/4 bullish signals`;
   document.getElementById('stat-rsi').textContent = lastRsi.toFixed(1);
   document.getElementById('stat-rsi-label').textContent = lastRsi > 70 ? 'Overbought' : lastRsi < 30 ? 'Oversold' : lastRsi > 50 ? 'Above midline' : 'Below midline';
+
+  // ATR stat
+  const lastAtr = atr[atr.length - 1];
+  document.getElementById('stat-atr').textContent = '$' + lastAtr.toFixed(2);
+  const bbWidth = bb[bb.length-1].upper - bb[bb.length-1].lower;
+  document.getElementById('stat-atr-detail').textContent = bbWidth < lastAtr * 3 ? 'BB Squeeze — big move soon' : 'Normal volatility';
 
   const nearSup = supBelow[0];
   const nearRes = resAbove[0];
@@ -463,17 +744,291 @@ function buildAll() {
     };
   });
 
+  // ── Indicator-driven price projection (5 days forward) ──
+  const actualProjDays = 5;
+  const projLabels = [];
+  const projMid = [], projHi = [], projLo = [];
+  const lastDate = BARS[BARS.length - 1].date;
+
+  // Today & next Friday
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const nextFri = new Date(today);
+  const dayOfWeek = nextFri.getDay();
+  const daysUntilFri = dayOfWeek <= 5 ? (5 - dayOfWeek) : (5 + 7 - dayOfWeek);
+  nextFri.setDate(nextFri.getDate() + (daysUntilFri === 0 ? 5 : daysUntilFri));
+
+  // Daily volatility from recent bars
+  const recentBars = BARS.slice(-10);
+  const avgRange = recentBars.reduce((s, b) => s + (b.high - b.low), 0) / recentBars.length;
+  const dailyVol = avgRange * 0.6;
+
+  // ── Regime detection: trending or ranging? ──
+  const ema7Slope = (e7[e7.length - 1] - e7[Math.max(0, e7.length - 4)]) / 3;
+  const ema21Slope = (e21[e21.length - 1] - e21[Math.max(0, e21.length - 6)]) / 5;
+  const slopesAgree = (ema7Slope > 0 && ema21Slope > 0) || (ema7Slope < 0 && ema21Slope < 0);
+  const isTrending = slopesAgree && Math.abs(ema7Slope) > 0.3;
+
+  // ── Score each signal's strength (−1 to +1) ──
+  // EMA trend direction
+  const emaTrendScore = ema7Slope > 0 ? Math.min(ema7Slope / 2, 1) : Math.max(ema7Slope / 2, -1);
+
+  // TSI momentum — how far above/below signal, scaled
+  const tsiDiff = tsi[tsi.length - 1] - sig[sig.length - 1];
+  const tsiScore = Math.max(-1, Math.min(1, tsiDiff / 20));
+
+  // RSI — extreme zones push harder
+  const rsiScore = lastRsi < 30 ? 0.8 : lastRsi < 40 ? 0.4 : lastRsi < 50 ? 0.1
+                 : lastRsi > 70 ? -0.8 : lastRsi > 60 ? -0.4 : lastRsi > 50 ? -0.1 : 0;
+
+  // MACD histogram momentum
+  const lastHist = histogram[histogram.length - 1];
+  const prevHist = histogram.length > 1 ? histogram[histogram.length - 2] : 0;
+  const macdScore = Math.max(-1, Math.min(1, lastHist / 3));
+  const macdAccel = lastHist > prevHist ? 0.2 : lastHist < prevHist ? -0.2 : 0;
+
+  // S/R proximity — which level is closer acts as a magnet
+  const nearestSupPrice = supBelow[0] ? supBelow[0].price : curPrice - 20;
+  const nearestResPrice = resAbove[0] ? resAbove[0].price : curPrice + 20;
+  const distToSup = (curPrice - nearestSupPrice) / curPrice;
+  const distToRes = (nearestResPrice - curPrice) / curPrice;
+  const srBias = distToSup < distToRes ? -0.3 : 0.3; // closer to support = more likely to bounce up
+
+  // ── Pick dominant signal in trending regime, blend in ranging ──
+  let directionScore;
+  if (isTrending) {
+    // Trending: trust the trend, weight EMA slope heavily, ATR scales the move
+    directionScore = emaTrendScore * 0.45 + tsiScore * 0.25 + macdScore * 0.15 + macdAccel + rsiScore * 0.1 + srBias * 0.05;
+  } else {
+    // Ranging: mean reversion matters more, S/R magnets pull harder
+    directionScore = rsiScore * 0.3 + srBias * 0.25 + tsiScore * 0.2 + emaTrendScore * 0.15 + macdScore * 0.1;
+  }
+
+  // Scale to actual dollar move using ATR
+  const lastAtrVal = atr[atr.length - 1];
+  const dailyMove = directionScore * lastAtrVal * 0.7; // 70% of ATR per day — matches recent volatility
+
+  let projPrice = curPrice;
+  for (let d = 0; d < actualProjDays; d++) {
+    const futDate = new Date(today);
+    if (futDate.getDay() === 0) futDate.setDate(futDate.getDate() + 1);
+    if (futDate.getDay() === 6) futDate.setDate(futDate.getDate() + 2);
+    let added = 0;
+    while (added < d) {
+      futDate.setDate(futDate.getDate() + 1);
+      if (futDate.getDay() !== 0 && futDate.getDay() !== 6) added++;
+    }
+    projLabels.push(fmt(futDate));
+
+    // Apply daily move — no artificial caps, let the data speak
+    projPrice += dailyMove;
+
+    const spread = dailyVol * Math.sqrt(d + 1);
+    projMid.push(+projPrice.toFixed(2));
+    projHi.push(+(projPrice + spread).toFixed(2));
+    projLo.push(+(projPrice - spread).toFixed(2));
+  }
+
+  const projEnd = projMid[projMid.length - 1];
+  const projHiEnd = projHi[projHi.length - 1];
+  const projLoEnd = projLo[projLo.length - 1];
+  const expiryStr = fmt(nextFri);
+
+  // Update projection stat
+  document.getElementById('stat-proj').textContent = '$' + projEnd.toFixed(2);
+  document.getElementById('stat-proj-range').textContent = `${projLoEnd.toFixed(2)} – ${projHiEnd.toFixed(2)} by ${expiryStr}`;
+
+  // ── Convergence signals (TSI + RSI align) ──
+  const bullSignals = [], bearSignals = [];
+  const warmup = Math.max(tsiLong, tsiShort, rsiPeriod) + 2;
+  for (let i = 1; i < prices.length; i++) {
+    if (i < warmup) continue;
+    const tsiCrossUp = tsi[i - 1] <= sig[i - 1] && tsi[i] > sig[i];
+    const tsiCrossDown = tsi[i - 1] >= sig[i - 1] && tsi[i] < sig[i];
+    const rsiRising = rsi[i] > rsi[i - 1] && rsi[i] < 45;
+    const rsiFalling = rsi[i] < rsi[i - 1] && rsi[i] > 55;
+    const rsiOversold = rsi[i] < 35;
+    const rsiOverbought = rsi[i] > 65;
+
+    // Bullish: TSI crosses up + RSI not overbought
+    if (tsiCrossUp && rsi[i] < 65) {
+      bullSignals.push({ x: labels[i], y: prices[i] });
+    }
+    // Bearish: TSI crosses down + RSI not oversold
+    if (tsiCrossDown && rsi[i] > 35) {
+      bearSignals.push({ x: labels[i], y: prices[i] });
+    }
+  }
+
+  // Signal stats
+  const totalSignals = bullSignals.length + bearSignals.length;
+  const lastSignal = bullSignals.length && bearSignals.length
+    ? (bullSignals[bullSignals.length-1].x > bearSignals[bearSignals.length-1].x ? 'Bullish' : 'Bearish')
+    : bullSignals.length ? 'Bullish' : bearSignals.length ? 'Bearish' : 'None';
+  document.getElementById('stat-signals').textContent = totalSignals;
+  document.getElementById('stat-signals').style.color = lastSignal === 'Bullish' ? 'var(--green)' : lastSignal === 'Bearish' ? 'var(--red)' : 'var(--amber)';
+  document.getElementById('stat-signals-detail').textContent = `Last: ${lastSignal} · ${bullSignals.length}▲ ${bearSignals.length}▼`;
+
+  // Day-by-day breakdown
+  let projDaysHTML = '';
+  for (let d = 0; d < actualProjDays; d++) {
+    const prevPrice = d === 0 ? curPrice : projMid[d - 1];
+    const change = projMid[d] - curPrice;
+    const changePct = (change / curPrice * 100).toFixed(2);
+    const isUp = change >= 0;
+    projDaysHTML += `<div class="proj-day">
+      <div class="day-label">Day ${d + 1}</div>
+      <div class="day-date">${projLabels[d]}</div>
+      <div class="day-mid">$${projMid[d].toFixed(2)}</div>
+      <div class="day-range">$${projLo[d].toFixed(2)} – $${projHi[d].toFixed(2)}</div>
+      <div class="day-change ${isUp ? 'up' : 'down'}">${isUp ? '+' : ''}${changePct}%</div>
+    </div>`;
+  }
+  document.getElementById('proj-days').innerHTML = projDaysHTML;
+
+  // Update summary with projection
+  summaryHTML += ` Expiry ${expiryStr} target: <span style="color:var(--cyan);font-weight:600">$${projLoEnd.toFixed(2)}–$${projHiEnd.toFixed(2)}</span>.`;
+  document.getElementById('summary-text').innerHTML = summaryHTML;
+
+  // ── TSI crossover points ──
+  const tsiCrossUpPts = [], tsiCrossDownPts = [];
+  for (let i = 1; i < tsi.length; i++) {
+    if (tsi[i - 1] <= sig[i - 1] && tsi[i] > sig[i]) tsiCrossUpPts.push({ x: labels[i], y: tsi[i] });
+    if (tsi[i - 1] >= sig[i - 1] && tsi[i] < sig[i]) tsiCrossDownPts.push({ x: labels[i], y: tsi[i] });
+  }
+
+  // ── RSI crossover points ──
+  const rsiCrossUpPts = [], rsiCrossDownPts = [];
+  for (let i = 1; i < rsi.length; i++) {
+    if (rsi[i - 1] <= 30 && rsi[i] > 30) rsiCrossUpPts.push({ x: labels[i], y: rsi[i] });
+    if (rsi[i - 1] <= 50 && rsi[i] > 50) rsiCrossUpPts.push({ x: labels[i], y: rsi[i] });
+    if (rsi[i - 1] >= 70 && rsi[i] < 70) rsiCrossDownPts.push({ x: labels[i], y: rsi[i] });
+    if (rsi[i - 1] >= 50 && rsi[i] < 50) rsiCrossDownPts.push({ x: labels[i], y: rsi[i] });
+  }
+
+  // ── Live signal evaluation ──
+  const last = prices.length - 1;
+  const nearSupDist = nearSup ? (curPrice - nearSup.price) / curPrice : 1;
+  const nearResDist = nearRes ? (nearRes.price - curPrice) / curPrice : 1;
+  const tsiCrossedUp = last > 0 && tsi[last - 1] <= sig[last - 1] && tsi[last] > sig[last];
+  const tsiCrossedDown = last > 0 && tsi[last - 1] >= sig[last - 1] && tsi[last] < sig[last];
+  const tsiRecentUp = tsiCrossUpPts.length > 0 && tsiCrossUpPts[tsiCrossUpPts.length-1].x === labels[last];
+  const tsiRecentDown = tsiCrossDownPts.length > 0 && tsiCrossDownPts[tsiCrossDownPts.length-1].x === labels[last];
+  const rsiVal = lastRsi;
+  const rsiRisingNow = last > 0 && rsi[last] > rsi[last - 1];
+  const rsiFallingNow = last > 0 && rsi[last] < rsi[last - 1];
+
+  // Call conditions
+  const callConds = [
+    { text: 'Price within 3% of support', met: nearSupDist < 0.03 },
+    { text: `RSI rising or below 40 (${rsiVal.toFixed(1)})`, met: rsiRisingNow || rsiVal < 40 },
+    { text: 'TSI above signal line', met: tsi[last] > sig[last] },
+    { text: 'EMA 7 above EMA 21', met: ema7Above21 },
+    { text: 'Price above EMA 21', met: priceAbove21 },
+    { text: 'Projection trending up', met: projMid[projMid.length-1] > curPrice },
+  ];
+  // Put conditions
+  const putConds = [
+    { text: 'Price within 3% of resistance', met: nearResDist < 0.03 },
+    { text: `RSI falling or above 60 (${rsiVal.toFixed(1)})`, met: rsiFallingNow || rsiVal > 60 },
+    { text: 'TSI below signal line', met: tsi[last] < sig[last] },
+    { text: 'EMA 7 below EMA 21', met: !ema7Above21 },
+    { text: 'Price below EMA 21', met: !priceAbove21 },
+    { text: 'Projection trending down', met: projMid[projMid.length-1] < curPrice },
+  ];
+
+  const callMet = callConds.filter(c => c.met).length;
+  const putMet = putConds.filter(c => c.met).length;
+
+  const renderChecks = (conds, el) => {
+    el.innerHTML = conds.map(c =>
+      `<li style="color:${c.met ? '#fff' : '#444'}">${c.text}</li>`
+    ).join('');
+  };
+  const callEl = document.getElementById('call-checks');
+  const putEl = document.getElementById('put-checks');
+  callEl.innerHTML = callConds.map(c =>
+    `<li style="color:${c.met ? '#fff' : '#555'}"><span style="color:${c.met ? 'var(--green)' : '#333'};margin-right:2px">${c.met ? '&#10003;' : '&#10007;'}</span> ${c.text}</li>`
+  ).join('');
+  putEl.innerHTML = putConds.map(c =>
+    `<li style="color:${c.met ? '#fff' : '#555'}"><span style="color:${c.met ? 'var(--red)' : '#333'};margin-right:2px">${c.met ? '&#10003;' : '&#10007;'}</span> ${c.text}</li>`
+  ).join('');
+
+  document.getElementById('call-score').innerHTML = `<span style="color:var(--green)">${callMet}/${callConds.length} conditions met</span>`;
+  document.getElementById('put-score').innerHTML = `<span style="color:var(--red)">${putMet}/${putConds.length} conditions met</span>`;
+
+  // Verdict
+  const verdictEl = document.getElementById('signal-verdict');
+  const reasonEl = document.getElementById('signal-reason');
+  if (callMet >= 4) {
+    verdictEl.innerHTML = '<span style="color:var(--green)">CALL BIAS — Bullish setup active</span>';
+    reasonEl.textContent = `${callMet} of ${callConds.length} bullish conditions are met. Look for weekly calls near support at $${nearSup ? nearSup.price.toFixed(2) : '—'}.`;
+  } else if (putMet >= 4) {
+    verdictEl.innerHTML = '<span style="color:var(--red)">PUT BIAS — Bearish setup active</span>';
+    reasonEl.textContent = `${putMet} of ${putConds.length} bearish conditions are met. Look for weekly puts near resistance at $${nearRes ? nearRes.price.toFixed(2) : '—'}.`;
+  } else if (callMet >= 3) {
+    verdictEl.innerHTML = '<span style="color:var(--green);opacity:.7">LEANING CALLS — Watch for confirmation</span>';
+    reasonEl.textContent = `${callMet} of ${callConds.length} bullish conditions met. Wait for TSI cross up or price bounce off support to confirm.`;
+  } else if (putMet >= 3) {
+    verdictEl.innerHTML = '<span style="color:var(--red);opacity:.7">LEANING PUTS — Watch for confirmation</span>';
+    reasonEl.textContent = `${putMet} of ${putConds.length} bearish conditions met. Wait for TSI cross down or rejection at resistance to confirm.`;
+  } else {
+    verdictEl.innerHTML = '<span style="color:var(--amber)">NEUTRAL — No clear setup</span>';
+    reasonEl.textContent = `Call: ${callMet}/${callConds.length}, Put: ${putMet}/${putConds.length}. Wait for more conditions to align before entering.`;
+  }
+
+  // Extend labels and datasets with nulls for real data, values for projection
+  // ── Trend lines (extended into projection zone) ──
+  const trendLines = findTrendLines(BARS, lookback);
+  trendLines.forEach((tl, i) => {
+    const color = tl.type === 'support' ? 'rgba(0,230,118,0.7)' : 'rgba(255,23,68,0.7)';
+    const slope = (tl.endPrice - tl.startPrice) / (tl.endIdx - tl.startIdx);
+    const extendedEndIdx = tl.endIdx + actualProjDays;
+    const extendedEndPrice = tl.startPrice + slope * (extendedEndIdx - tl.startIdx);
+    const extendedLabel = projLabels[projLabels.length - 1];
+    annotations['trend' + i] = {
+      type: 'line',
+      xMin: labels[tl.startIdx],
+      xMax: extendedLabel,
+      yMin: tl.startPrice,
+      yMax: extendedEndPrice,
+      borderColor: color,
+      borderWidth: 2,
+      borderDash: [6, 3],
+      label: {
+        display: true,
+        content: (tl.type === 'support' ? 'S trend → $' : 'R trend → $') + extendedEndPrice.toFixed(0),
+        position: 'end',
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        color: color,
+        font: { size: 9 },
+        padding: 3
+      }
+    };
+  });
+
+  const allLabels = [...labels, ...projLabels];
+  const padded = (arr) => [...arr, ...Array(actualProjDays).fill(null)];
+  const projPadded = (arr) => [...Array(prices.length - 1).fill(null), prices[prices.length - 1], ...arr]; // connect from last real price
+
   // ── Price chart ──
-  const pMin = Math.floor(Math.min(...prices, ...supBelow.slice(0, 3).map(s => s.price)) - 3);
-  const pMax = Math.ceil(Math.max(...prices, ...resAbove.slice(0, 3).map(r => r.price)) + 3);
+  const allPricesForRange = [...prices, ...projHi, ...projLo];
+  const pMin = Math.floor(Math.min(...allPricesForRange, ...supBelow.slice(0, 3).map(s => s.price)) - 3);
+  const pMax = Math.ceil(Math.max(...allPricesForRange, ...resAbove.slice(0, 3).map(r => r.price)) + 3);
 
   const priceData = {
-    labels,
+    labels: allLabels,
     datasets: [
-      { label: 'Close', data: prices, borderColor: '#fff', borderWidth: 1.8, pointRadius: 2, pointBackgroundColor: '#fff', tension: 0.25, fill: false },
-      { label: 'EMA 7', data: e7, borderColor: '#ce93d8', borderWidth: 1.2, pointRadius: 0, tension: 0.3 },
-      { label: 'EMA 21', data: e21, borderColor: '#00e5ff', borderWidth: 1.2, pointRadius: 0, tension: 0.3 },
-      { label: 'EMA 50', data: e50, borderColor: '#ffa726', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+      { label: 'Close', data: padded(prices), borderColor: '#fff', borderWidth: 1.8, pointRadius: 2, pointBackgroundColor: '#fff', tension: 0.25, fill: false },
+      { label: 'EMA 7', data: padded(e7), borderColor: '#ce93d8', borderWidth: 1.2, pointRadius: 0, tension: 0.3 },
+      { label: 'EMA 21', data: padded(e21), borderColor: '#00e5ff', borderWidth: 1.2, pointRadius: 0, tension: 0.3 },
+      { label: 'EMA 50', data: padded(e50), borderColor: '#ffa726', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+      { label: 'BB Upper', data: padded(bb.map(b => b.upper)), borderColor: 'rgba(206,147,216,0.3)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: '+1', backgroundColor: 'rgba(206,147,216,0.06)' },
+      { label: 'BB Lower', data: padded(bb.map(b => b.lower)), borderColor: 'rgba(206,147,216,0.3)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: false },
+      { label: 'VWAP', data: padded(vwap), borderColor: '#ffb300', borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0, tension: 0.3 },
+      { label: 'Proj Mid', data: projPadded(projMid), borderColor: 'rgba(0,229,255,0.6)', borderWidth: 2, borderDash: [4, 3], pointRadius: 0, tension: 0.3, fill: false },
+      { label: 'Proj High', data: projPadded(projHi), borderColor: 'rgba(0,229,255,0.25)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: '+1', backgroundColor: 'rgba(0,229,255,0.07)' },
+      { label: 'Proj Low', data: projPadded(projLo), borderColor: 'rgba(0,229,255,0.25)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: false },
     ]
   };
 
@@ -484,12 +1039,13 @@ function buildAll() {
     plugins: {
       legend: { display: false },
       annotation: { annotations },
+      ...zoomPlugin,
       tooltip: { backgroundColor: '#1a1a2e', borderColor: '#333', borderWidth: 1, titleColor: '#888', bodyColor: '#ddd', titleFont: { size: 10 }, bodyFont: { size: 12 },
         callbacks: { label: ctx => ` ${ctx.dataset.label}: $${(+ctx.parsed.y).toFixed(2)}` }
       }
     },
     scales: {
-      x: { ticks: { color: '#555', font: { size: 10 }, maxTicksLimit: 12, maxRotation: 0 }, grid: { color: GRID } },
+      x: { ticks: { color: '#555', font: { size: 10 }, maxRotation: 45, autoSkip: currentInterval !== '1d' }, grid: { color: GRID } },
       y: { min: pMin, max: pMax, ticks: { color: '#555', font: { size: 10 }, callback: v => '$' + v.toFixed(0) }, grid: { color: GRID } }
     }
   };
@@ -501,19 +1057,29 @@ function buildAll() {
   const tsiMin = Math.floor(Math.min(...tsi, ...sig) - 5);
   const tsiMax = Math.ceil(Math.max(...tsi, ...sig) + 5);
   const tsiData = {
-    labels,
+    labels: allLabels,
     datasets: [
-      { label: 'TSI', data: tsi, borderColor: '#42a5f5', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-      { label: 'Signal', data: sig, borderColor: '#ffb300', borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, tension: 0.3 },
-      { label: 'Zero', data: prices.map(() => 0), borderColor: '#444', borderWidth: 1, pointRadius: 0, borderDash: [2, 4] }
+      { label: 'TSI', data: padded(tsi), borderColor: '#42a5f5', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+      { label: 'Signal', data: padded(sig), borderColor: '#ffb300', borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, tension: 0.3 },
+      { label: 'Zero', data: allLabels.map(() => 0), borderColor: '#444', borderWidth: 1, pointRadius: 0, borderDash: [2, 4] },
+      {
+        label: 'Cross Up', data: tsiCrossUpPts, borderColor: 'transparent', backgroundColor: '#00e676',
+        pointRadius: 7, pointStyle: 'triangle', pointHoverRadius: 10,
+        showLine: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' }
+      },
+      {
+        label: 'Cross Down', data: tsiCrossDownPts, borderColor: 'transparent', backgroundColor: '#ff1744',
+        pointRadius: 7, pointStyle: 'triangle', pointHoverRadius: 10, rotation: 180,
+        showLine: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' }
+      },
     ]
   };
   const tsiOpts = {
     responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
     interaction: { mode: 'index', intersect: false },
-    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a1a2e', borderColor: '#333', borderWidth: 1, titleColor: '#888', bodyColor: '#ddd' } },
+    plugins: { legend: { display: false }, ...zoomPlugin, tooltip: { backgroundColor: '#1a1a2e', borderColor: '#333', borderWidth: 1, titleColor: '#888', bodyColor: '#ddd' } },
     scales: {
-      x: { ticks: { color: '#555', font: { size: 10 }, maxTicksLimit: 12, maxRotation: 0 }, grid: { color: GRID } },
+      x: { ticks: { color: '#555', font: { size: 10 }, maxRotation: 45, autoSkip: currentInterval !== '1d' }, grid: { color: GRID } },
       y: { min: tsiMin, max: tsiMax, ticks: { color: '#555', font: { size: 10 } }, grid: { color: GRID } }
     }
   };
@@ -522,40 +1088,150 @@ function buildAll() {
 
   // ── RSI chart ──
   const rsiData = {
-    labels,
+    labels: allLabels,
     datasets: [
-      { label: 'RSI', data: rsi, borderColor: '#42a5f5', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-      { label: '70', data: prices.map(() => 70), borderColor: '#ff1744', borderWidth: 1, pointRadius: 0, borderDash: [4, 3] },
-      { label: '50', data: prices.map(() => 50), borderColor: '#555', borderWidth: 1, pointRadius: 0, borderDash: [2, 4] },
-      { label: '30', data: prices.map(() => 30), borderColor: '#00e676', borderWidth: 1, pointRadius: 0, borderDash: [4, 3] },
+      { label: 'RSI', data: padded(rsi), borderColor: '#42a5f5', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
+      { label: '70', data: allLabels.map(() => 70), borderColor: '#ff1744', borderWidth: 1, pointRadius: 0, borderDash: [4, 3] },
+      { label: '50', data: allLabels.map(() => 50), borderColor: '#555', borderWidth: 1, pointRadius: 0, borderDash: [2, 4] },
+      { label: '30', data: allLabels.map(() => 30), borderColor: '#00e676', borderWidth: 1, pointRadius: 0, borderDash: [4, 3] },
+      {
+        label: 'Cross Up', data: rsiCrossUpPts, borderColor: 'transparent', backgroundColor: '#00e676',
+        pointRadius: 7, pointStyle: 'triangle', pointHoverRadius: 10,
+        showLine: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' }
+      },
+      {
+        label: 'Cross Down', data: rsiCrossDownPts, borderColor: 'transparent', backgroundColor: '#ff1744',
+        pointRadius: 7, pointStyle: 'triangle', pointHoverRadius: 10, rotation: 180,
+        showLine: false, parsing: { xAxisKey: 'x', yAxisKey: 'y' }
+      },
     ]
   };
   const rsiOpts = {
     responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
     interaction: { mode: 'index', intersect: false },
-    plugins: { legend: { display: false }, annotation: {
+    plugins: { legend: { display: false }, ...zoomPlugin, annotation: {
       annotations: {
         ob: { type: 'box', yMin: 70, yMax: 100, backgroundColor: 'rgba(255,23,68,0.05)', borderWidth: 0 },
         os: { type: 'box', yMin: 0, yMax: 30, backgroundColor: 'rgba(0,230,118,0.05)', borderWidth: 0 },
       }
     }, tooltip: { backgroundColor: '#1a1a2e', borderColor: '#333', borderWidth: 1, titleColor: '#888', bodyColor: '#ddd' } },
     scales: {
-      x: { ticks: { color: '#555', font: { size: 10 }, maxTicksLimit: 12, maxRotation: 0 }, grid: { color: GRID } },
+      x: { ticks: { color: '#555', font: { size: 10 }, maxRotation: 45, autoSkip: currentInterval !== '1d' }, grid: { color: GRID } },
       y: { min: 0, max: 100, ticks: { color: '#555', font: { size: 10 } }, grid: { color: GRID } }
     }
   };
   if (rsiChart) { rsiChart.data = rsiData; rsiChart.options = rsiOpts; rsiChart.update(); }
   else { rsiChart = new Chart(document.getElementById('rsiChart'), { type: 'line', data: rsiData, options: rsiOpts }); }
+
+  // ── Volume chart ──
+  const volColors = prices.map((p, i) => i === 0 ? 'rgba(255,255,255,0.3)' : p >= prices[i-1] ? 'rgba(0,230,118,0.5)' : 'rgba(255,23,68,0.5)');
+  const volData = { labels: allLabels, datasets: [{ label: 'Volume', data: padded(volumes), backgroundColor: [...volColors, ...Array(actualProjDays).fill('transparent')], borderWidth: 0 }] };
+  const volOpts = {
+    responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+    plugins: { legend: { display: false }, ...zoomPlugin, tooltip: { backgroundColor: '#1a1a2e', borderColor: '#333', borderWidth: 1, titleColor: '#888', bodyColor: '#ddd',
+      callbacks: { label: ctx => ' Vol: ' + (ctx.parsed.y / 1e6).toFixed(1) + 'M' } } },
+    scales: {
+      x: { ticks: { color: '#555', font: { size: 10 }, maxRotation: 45, autoSkip: currentInterval !== '1d' }, grid: { color: GRID } },
+      y: { ticks: { color: '#555', font: { size: 10 }, callback: v => (v / 1e6).toFixed(0) + 'M' }, grid: { color: GRID } }
+    }
+  };
+  if (volChart) { volChart.data = volData; volChart.options = volOpts; volChart.update(); }
+  else { volChart = new Chart(document.getElementById('volChart'), { type: 'bar', data: volData, options: volOpts }); }
+
+  // ── MACD chart ──
+  const histColors = histogram.map(v => v >= 0 ? 'rgba(0,230,118,0.5)' : 'rgba(255,23,68,0.5)');
+  const macdData = {
+    labels: allLabels,
+    datasets: [
+      { label: 'Histogram', data: padded(histogram), backgroundColor: [...histColors, ...Array(actualProjDays).fill('transparent')], borderWidth: 0, type: 'bar', order: 2 },
+      { label: 'MACD', data: padded(macdLine), borderColor: '#42a5f5', borderWidth: 1.5, pointRadius: 0, tension: 0.3, type: 'line', order: 1 },
+      { label: 'Signal', data: padded(signalLine), borderColor: '#ffb300', borderWidth: 1.5, borderDash: [5, 3], pointRadius: 0, tension: 0.3, type: 'line', order: 1 },
+    ]
+  };
+  const macdMin = Math.floor(Math.min(...macdLine, ...signalLine, ...histogram) - 1);
+  const macdMax = Math.ceil(Math.max(...macdLine, ...signalLine, ...histogram) + 1);
+  const macdOpts = {
+    responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { display: false }, ...zoomPlugin, tooltip: { backgroundColor: '#1a1a2e', borderColor: '#333', borderWidth: 1, titleColor: '#888', bodyColor: '#ddd' } },
+    scales: {
+      x: { ticks: { color: '#555', font: { size: 10 }, maxRotation: 45, autoSkip: currentInterval !== '1d' }, grid: { color: GRID } },
+      y: { min: macdMin, max: macdMax, ticks: { color: '#555', font: { size: 10 } }, grid: { color: GRID } }
+    }
+  };
+  if (macdChart) { macdChart.data = macdData; macdChart.options = macdOpts; macdChart.update(); }
+  else { macdChart = new Chart(document.getElementById('macdChart'), { type: 'bar', data: macdData, options: macdOpts }); }
+
+  // ── ATR chart ──
+  const atrData = { labels: allLabels, datasets: [{ label: 'ATR', data: padded(atr), borderColor: '#ffb300', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true, backgroundColor: 'rgba(255,179,0,0.08)' }] };
+  const atrOpts = {
+    responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { display: false }, ...zoomPlugin, tooltip: { backgroundColor: '#1a1a2e', borderColor: '#333', borderWidth: 1, titleColor: '#888', bodyColor: '#ddd',
+      callbacks: { label: ctx => ' ATR: $' + (+ctx.parsed.y).toFixed(2) } } },
+    scales: {
+      x: { ticks: { color: '#555', font: { size: 10 }, maxRotation: 45, autoSkip: currentInterval !== '1d' }, grid: { color: GRID } },
+      y: { ticks: { color: '#555', font: { size: 10 }, callback: v => '$' + v.toFixed(0) }, grid: { color: GRID } }
+    }
+  };
+  if (atrChart) { atrChart.data = atrData; atrChart.options = atrOpts; atrChart.update(); }
+  else { atrChart = new Chart(document.getElementById('atrChart'), { type: 'line', data: atrData, options: atrOpts }); }
 }
 
 // ─── Wire sliders ───────────────────────────────────────────
-['s-rsi-period', 's-tsi-long', 's-tsi-short', 's-tsi-signal', 's-sr-lookback'].forEach(id => {
+['s-rsi-period', 's-tsi-long', 's-tsi-short', 's-tsi-signal', 's-sr-lookback', 's-bb-period'].forEach(id => {
   const el = document.getElementById(id);
   const valId = id.replace('s-', 'v-');
   el.addEventListener('input', () => {
     document.getElementById(valId).textContent = el.value;
     buildAll();
   });
+});
+
+// ─── Data refresh ───────────────────────────────────────────
+function updateTimestamp() {
+  const now = new Date();
+  document.getElementById('last-update').textContent = 'Updated ' + now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+async function refreshData() {
+  try {
+    BARS = await fetchSPY();
+    buildAll();
+    updateTimestamp();
+  } catch (err) {
+    console.error('Refresh failed:', err.message);
+  }
+}
+
+let refreshTimer = null;
+function setRefreshInterval() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  const ms = +document.getElementById('refresh-interval').value;
+  if (ms > 0) refreshTimer = setInterval(refreshData, ms);
+}
+
+document.getElementById('refresh-interval').addEventListener('change', setRefreshInterval);
+document.getElementById('reset-zoom').addEventListener('click', () => {
+  [priceChart, tsiChart, rsiChart, volChart, macdChart, atrChart].forEach(c => { if (c) c.resetZoom(); });
+});
+
+// ─── Timeframe tabs ─────────────────────────────────────────
+document.querySelectorAll('.tf-tab').forEach(tab => {
+  tab.addEventListener('click', async () => {
+    document.querySelectorAll('.tf-tab').forEach(t => { t.style.background = 'var(--panel)'; t.style.color = 'var(--muted)'; t.style.fontWeight = 'normal'; });
+    tab.style.background = 'var(--cyan)'; tab.style.color = '#000'; tab.style.fontWeight = '600';
+    currentInterval = tab.dataset.interval;
+    currentRange = tab.dataset.range;
+    // Destroy existing charts so they rebuild fresh
+    [priceChart, tsiChart, rsiChart, volChart, macdChart, atrChart].forEach(c => { if (c) c.destroy(); });
+    priceChart = tsiChart = rsiChart = volChart = macdChart = atrChart = null;
+    await refreshData();
+  });
+});
+document.getElementById('refresh-now').addEventListener('click', () => {
+  document.getElementById('refresh-now').textContent = 'Refreshing...';
+  refreshData().then(() => { document.getElementById('refresh-now').textContent = 'Refresh Now'; });
 });
 
 // ─── Init ───────────────────────────────────────────────────
@@ -565,6 +1241,8 @@ function buildAll() {
     document.getElementById('app-loading').style.display = 'none';
     document.getElementById('app-content').style.display = 'block';
     buildAll();
+    updateTimestamp();
+    setRefreshInterval();
   } catch (err) {
     document.getElementById('app-loading').innerHTML =
       `<div class="error-msg">Failed to fetch SPY data: ${err.message}<br><br>Try refreshing the page. If the issue persists, the CORS proxy may be temporarily unavailable.</div>`;
