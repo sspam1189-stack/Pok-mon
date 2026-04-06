@@ -146,6 +146,7 @@
 
 <div class="stats-row" id="stats-row">
   <div class="stat-card"><div class="label">Current Price</div><div class="value" id="stat-price" style="color:#fff">—</div><div class="sub" id="stat-date"></div></div>
+  <div class="stat-card"><div class="label">Open Price</div><div class="value" id="stat-open" style="color:#fff">—</div><div class="sub" id="stat-open-chg"></div></div>
   <div class="stat-card"><div class="label">Weekly Range</div><div class="value" id="stat-range" style="color:var(--cyan)">—</div><div class="sub" id="stat-range-pct"></div></div>
   <div class="stat-card"><div class="label">Trend Bias</div><div class="value" id="stat-trend">—</div><div class="sub" id="stat-trend-detail"></div></div>
   <div class="stat-card"><div class="label">RSI (14)</div><div class="value" id="stat-rsi" style="color:var(--amber)">—</div><div class="sub" id="stat-rsi-label"></div></div>
@@ -676,6 +677,12 @@ function buildAll() {
   // ── Update stats ──
   document.getElementById('stat-price').textContent = '$' + curPrice.toFixed(2);
   document.getElementById('stat-date').textContent = fmt(BARS[BARS.length - 1].date);
+  const openPrice = BARS[BARS.length - 1].open;
+  const openChg = curPrice - openPrice;
+  const openChgPct = (openChg / openPrice * 100).toFixed(2);
+  document.getElementById('stat-open').textContent = '$' + openPrice.toFixed(2);
+  document.getElementById('stat-open-chg').textContent = `${openChg >= 0 ? '+' : ''}${openChgPct}% from open`;
+  document.getElementById('stat-open-chg').style.color = openChg >= 0 ? 'var(--green)' : 'var(--red)';
   document.getElementById('stat-range').textContent = '$' + weekRange.toFixed(2);
   document.getElementById('stat-range-pct').textContent = `${weekLo.toFixed(2)} – ${weekHi.toFixed(2)}`;
   document.getElementById('stat-trend').textContent = trendBias;
