@@ -530,6 +530,19 @@ function clusterLevels(levels, threshold) {
 }
 
 // ─── Trend line detection ───────────────────────────────────
+// ─── US market holidays 2026 (NYSE/NASDAQ closed) ──────────
+const MARKET_HOLIDAYS = new Set([
+  '2026-01-01','2026-01-19','2026-02-16','2026-04-03',
+  '2026-05-25','2026-07-03','2026-09-07','2026-11-26','2026-12-25'
+]);
+function isMarketHoliday(d) {
+  const s = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  return MARKET_HOLIDAYS.has(s);
+}
+function isTradingDay(d) {
+  return d.getDay() !== 0 && d.getDay() !== 6 && !isMarketHoliday(d);
+}
+
 // ─── Chart globals ──────────────────────────────────────────
 const GRID = 'rgba(255,255,255,0.04)';
 let priceChart, tsiChart, rsiChart, volChart, macdChart, atrChart;
@@ -735,16 +748,16 @@ function buildAll() {
   // Start projection from today or the next trading day
   let projStart = new Date();
   projStart.setHours(9, 30, 0, 0);
-  // If it's a weekend, skip to Monday
-  while (projStart.getDay() === 0 || projStart.getDay() === 6) {
+  // Skip to next trading day if today is weekend/holiday
+  while (!isTradingDay(projStart)) {
     projStart.setDate(projStart.getDate() + 1);
   }
 
   let stepCount = 0;
   for (let d = 0; d < 5000 && stepCount < projSteps; d++) {
     const futDate = new Date(projStart.getTime() + d * stepMinutes * 60000);
-    // Skip weekends
-    if (futDate.getDay() === 0 || futDate.getDay() === 6) continue;
+    // Skip non-trading days (weekends + holidays)
+    if (!isTradingDay(futDate)) continue;
     // Skip outside market hours (9:30-16:00 ET) for intraday
     if (currentInterval !== '1d') {
       const h = futDate.getHours(), m = futDate.getMinutes();
