@@ -376,18 +376,14 @@ async function fetchSPY() {
           volume: q.volume[i]
         });
       }
-      // Trim 15m data to last 5 trading days
-      if (currentInterval === '15m') {
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - 5);
-        cutoff.setHours(0,0,0,0);
-        return bars.filter(b => b.date >= cutoff);
-      }
-      // Trim hourly data to last 10 trading days
-      if (currentInterval === '60m') {
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - 14); // 14 calendar days ~= 10 trading days
-        return bars.filter(b => b.date >= cutoff);
+      // Filter out weekends from intraday data, then trim to N trading days
+      if (currentInterval === '15m' || currentInterval === '60m') {
+        const tradingBars = bars.filter(b => b.date.getDay() !== 0 && b.date.getDay() !== 6);
+        const tradingDays = currentInterval === '15m' ? 5 : 10;
+        // Find unique trading dates
+        const uniqueDates = [...new Set(tradingBars.map(b => b.date.toDateString()))];
+        const keepDates = new Set(uniqueDates.slice(-tradingDays));
+        return tradingBars.filter(b => keepDates.has(b.date.toDateString()));
       }
       return bars;
     } catch (e) { lastErr = e; }
