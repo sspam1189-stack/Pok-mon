@@ -231,7 +231,6 @@
       <span class="leg"><span class="leg-line" style="background:rgba(255,23,68,.4);height:6px"></span>Resistance</span>
       <span class="leg"><span class="leg-line" style="background:rgba(206,147,216,.2);height:6px"></span>VWAP Bands</span>
       <span class="leg"><span class="leg-line" style="background:var(--amber);border-top:2px dotted var(--amber);background:none"></span>VWAP</span>
-      <span class="leg"><span class="leg-line" style="background:var(--amber);height:2px;border-top:2px dashed var(--amber);background:none"></span>Trend</span>
       <span class="leg"><span class="leg-line" style="background:rgba(0,229,255,.3);height:6px"></span>Projected Range</span>
     </div>
   </div>
@@ -537,126 +536,6 @@ function clusterLevels(levels, threshold) {
     }
   }
   return clusters.map(c => ({ price: +c.price.toFixed(2), type: c.type, strength: c.count }));
-}
-
-// ─── Trend line detection ───────────────────────────────────
-function findTrendLines(bars, lookback) {
-  const curPrice = bars[bars.length - 1].close;
-  const lb = Math.max(2, Math.min(lookback, 3));
-  const swingHighs = [], swingLows = [];
-  for (let i = lb; i < bars.length - lb; i++) {
-    let isHigh = true, isLow = true;
-    for (let j = 1; j <= lb; j++) {
-      if (bars[i].high < bars[i-j].high || bars[i].high < bars[i+j].high) isHigh = false;
-      if (bars[i].low > bars[i-j].low || bars[i].low > bars[i+j].low) isLow = false;
-    }
-    if (isHigh) swingHighs.push({ idx: i, price: bars[i].high });
-    if (isLow) swingLows.push({ idx: i, price: bars[i].low });
-  }
-  // Fallback
-  if (swingHighs.length < 2) for (let i = 1; i < bars.length - 1; i++) {
-    if (bars[i].high > bars[i-1].high && bars[i].high > bars[i+1].high) swingHighs.push({ idx: i, price: bars[i].high });
-  }
-  if (swingLows.length < 2) for (let i = 1; i < bars.length - 1; i++) {
-    if (bars[i].low < bars[i-1].low && bars[i].low < bars[i+1].low) swingLows.push({ idx: i, price: bars[i].low });
-  }
-  const lines = [];
-  const minDist = Math.max(3, Math.floor(bars.length * 0.1));
-  const lastIdx = bars.length - 1;
-
-  function bestLine(points, type) {
-    const isRes = type === 'resistance';
-    let best = null, bestScore = -Infinity;
-    for (let a = 0; a < points.length - 1; a++) {
-      for (let b = a + 1; b < points.length; b++) {
-        const p1 = points[a], p2 = points[b];
-        if (p2.idx - p1.idx < minDist) continue;
-        const slope = (p2.price - p1.price) / (p2.idx - p1.idx);
-        const priceAtEnd = p1.price + slope * (lastIdx - p1.idx);
-        // Count touches (within 0.5% of line) and violations
-        let touches = 0, violations = 0;
-        for (let k = p1.idx; k <= p2.idx; k++) {
-          const linePrice = p1.price + slope * (k - p1.idx);
-          const checkPrice = isRes ? bars[k].high : bars[k].low;
-          if (Math.abs(checkPrice - linePrice) / linePrice < 0.005) touches++;
-          if (isRes && bars[k].high > linePrice * 1.008) violations++;
-          if (!isRes && bars[k].low < linePrice * 0.992) violations++;
-        }
-        // Only check violations between the two anchor points
-        if (violations > (p2.idx - p1.idx) * 0.2) continue;
-        if (touches < 2) continue;
-        // Detect if price broke through the line recently
-        const broken = isRes ? curPrice > priceAtEnd : curPrice < priceAtEnd;
-        const recency = (p1.idx + p2.idx) / 2 / lastIdx;
-        const score = touches * 15 + recency * 20 + (p2.idx - p1.idx) * 0.3;
-        if (score > bestScore) { bestScore = score; best = { p1, p2, slope, priceAtEnd, broken }; }
-      }
-    }
-    if (best) lines.push({
-      startIdx: best.p1.idx, startPrice: best.p1.price,
-      endIdx: lastIdx, endPrice: best.priceAtEnd, type, broken: best.broken
-    });
-  }
-  bestLine(swingHighs, 'resistance');
-  bestLine(swingLows, 'support');
-
-  // If a line is broken, find a new trend line from recent swing points
-  const resBroken = lines.find(l => l.type === 'resistance' && l.broken);
-  const supBroken = lines.find(l => l.type === 'support' && l.broken);
-  if (resBroken) {
-    // Use swing highs from the second half of the chart for a fresh line
-    const midIdx = Math.floor(lastIdx / 2);
-    const recentHighs = swingHighs.filter(h => h.idx >= midIdx);
-    if (recentHighs.length >= 2) {
-      // Find best pair that stays above current price
-      let best = null, bestSc = -Infinity;
-      for (let a = 0; a < recentHighs.length - 1; a++) {
-        for (let b = a + 1; b < recentHighs.length; b++) {
-          const p1 = recentHighs[a], p2 = recentHighs[b];
-          if (p2.idx - p1.idx < 2) continue;
-          const slope = (p2.price - p1.price) / (p2.idx - p1.idx);
-          const atEnd = p1.price + slope * (lastIdx - p1.idx);
-          if (atEnd <= curPrice * 0.99) continue; // must be near or above price
-          const sc = (p2.idx - p1.idx) + (p1.idx + p2.idx) / lastIdx * 10;
-          if (sc > bestSc) { bestSc = sc; best = { p1, p2, slope, atEnd }; }
-        }
-      }
-      if (best) {
-        lines.push({
-          startIdx: best.p1.idx, startPrice: best.p1.price,
-          endIdx: lastIdx, endPrice: best.atEnd,
-          type: 'resistance', broken: false, isNew: true
-        });
-      }
-    }
-  }
-  if (supBroken) {
-    const midIdx = Math.floor(lastIdx / 2);
-    const recentLows = swingLows.filter(l => l.idx >= midIdx);
-    if (recentLows.length >= 2) {
-      let best = null, bestSc = -Infinity;
-      for (let a = 0; a < recentLows.length - 1; a++) {
-        for (let b = a + 1; b < recentLows.length; b++) {
-          const p1 = recentLows[a], p2 = recentLows[b];
-          if (p2.idx - p1.idx < 2) continue;
-          const slope = (p2.price - p1.price) / (p2.idx - p1.idx);
-          const atEnd = p1.price + slope * (lastIdx - p1.idx);
-          if (atEnd >= curPrice * 1.01) continue;
-          const sc = (p2.idx - p1.idx) + (p1.idx + p2.idx) / lastIdx * 10;
-          if (sc > bestSc) { bestSc = sc; best = { p1, p2, slope, atEnd }; }
-        }
-      }
-      if (best) {
-        lines.push({
-          startIdx: best.p1.idx, startPrice: best.p1.price,
-          endIdx: lastIdx, endPrice: best.atEnd,
-          type: 'support', broken: false, isNew: true
-        });
-      }
-    }
-  }
-
-  return lines;
 }
 
 // ─── US market holidays 2026 (NYSE/NASDAQ closed) ──────────
@@ -1096,29 +975,6 @@ function buildAll() {
   const projLen = projLabels.length;
   const allLabels = [...labels, ...projLabels];
 
-  // ── Trend lines (extended into projection zone) ──
-  const trendLines = findTrendLines(BARS, lookback);
-  trendLines.forEach((tl, i) => {
-    const baseColor = tl.type === 'support' ? 'rgba(0,230,118,' : 'rgba(255,23,68,';
-    const color = baseColor + (tl.broken ? '0.4)' : '0.7)');
-    const slope = (tl.endPrice - tl.startPrice) / (tl.endIdx - tl.startIdx);
-    const extEndIdx = labels.length + projLen - 1;
-    const extEndPrice = tl.startPrice + slope * (extEndIdx - tl.startIdx);
-    const prefix = tl.type === 'support' ? 'S' : 'R';
-    const breakLabel = tl.broken ? ' BROKEN' : tl.isNew ? ' NEW' : '';
-    annotations['trend' + i] = {
-      type: 'line',
-      xMin: tl.startIdx, xMax: extEndIdx, xScaleID: 'x',
-      yMin: tl.startPrice, yMax: extEndPrice,
-      borderColor: color, borderWidth: tl.broken ? 1.5 : 2, borderDash: [6, 3],
-      label: {
-        display: true,
-        content: `${prefix} trend → $${extEndPrice.toFixed(0)}${breakLabel}`,
-        position: 'end', backgroundColor: 'rgba(0,0,0,0.6)', color: color,
-        font: { size: 9 }, padding: 3
-      }
-    };
-  });
 
   const padded = (arr) => [...arr, ...Array(projLen).fill(null)];
   const projPadded = (arr) => [...Array(prices.length - 1).fill(null), prices[prices.length - 1], ...arr]; // connect from last real price
