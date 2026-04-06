@@ -864,9 +864,9 @@ function buildAll() {
   for (let c = 0; c < cardIndices.length; c++) {
     const idx = cardIndices[c];
     if (idx >= projMid.length) continue;
-    const prevClose = lastBar.close;
-    const change = projMid[idx] - prevClose;
-    const changePct = (change / prevClose * 100).toFixed(2);
+    const basePrice = c === 0 ? lastBar.close : projMid[cardIndices[c - 1]];
+    const change = projMid[idx] - basePrice;
+    const changePct = (change / basePrice * 100).toFixed(2);
     const isUp = change >= 0;
     projDaysHTML += `<div class="proj-day">
       <div class="day-label">${cardTitle} ${c + 1}</div>
@@ -875,7 +875,7 @@ function buildAll() {
       <div class="day-mid">$${projMid[idx].toFixed(2)}</div>
       <div style="font-size:9px;color:#555;margin-top:4px">RANGE</div>
       <div class="day-range">$${projLo[idx].toFixed(2)} – $${projHi[idx].toFixed(2)}</div>
-      <div style="font-size:9px;color:#555;margin-top:4px">FROM PREV CLOSE</div>
+      <div style="font-size:9px;color:#555;margin-top:4px">${c === 0 ? 'FROM PREV CLOSE' : 'FROM DAY ' + c}</div>
       <div class="day-change ${isUp ? 'up' : 'down'}">${isUp ? '+' : ''}${changePct}%</div>
     </div>`;
   }
