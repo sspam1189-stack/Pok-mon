@@ -228,7 +228,7 @@
       <span class="leg"><span class="leg-line" style="background:var(--orange)"></span>EMA 50</span>
       <span class="leg"><span class="leg-line" style="background:rgba(0,230,118,.4);height:6px"></span>Support</span>
       <span class="leg"><span class="leg-line" style="background:rgba(255,23,68,.4);height:6px"></span>Resistance</span>
-      <span class="leg"><span class="leg-line" style="background:rgba(206,147,216,.2);height:6px"></span>Bollinger</span>
+      <span class="leg"><span class="leg-line" style="background:rgba(206,147,216,.2);height:6px"></span>VWAP Bands</span>
       <span class="leg"><span class="leg-line" style="background:var(--amber);border-top:2px dotted var(--amber);background:none"></span>VWAP</span>
       <span class="leg"><span class="leg-line" style="background:var(--amber);height:2px;border-top:2px dashed var(--amber);background:none"></span>Trend</span>
       <span class="leg"><span class="leg-line" style="background:rgba(0,229,255,.3);height:6px"></span>Projected Range</span>
@@ -1051,11 +1051,9 @@ function buildAll() {
       { label: 'EMA 9', data: padded(e7), borderColor: '#ce93d8', borderWidth: 1.2, pointRadius: 0, tension: 0.3 },
       { label: 'EMA 21', data: padded(e21), borderColor: '#00e5ff', borderWidth: 1.2, pointRadius: 0, tension: 0.3 },
       { label: 'EMA 50', data: padded(e50), borderColor: '#ffa726', borderWidth: 1.5, pointRadius: 0, tension: 0.3 },
-      { label: 'BB Upper', data: padded(bb.map(b => b.upper)), borderColor: 'rgba(206,147,216,0.3)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: '+1', backgroundColor: 'rgba(206,147,216,0.06)' },
-      { label: 'BB Lower', data: padded(bb.map(b => b.lower)), borderColor: 'rgba(206,147,216,0.3)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: false },
       { label: 'VWAP', data: padded(vwap), borderColor: '#ffb300', borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0, tension: 0.3 },
-      { label: 'VWAP Upper', data: padded(vwapUpper), borderColor: 'rgba(255,179,0,0.25)', borderWidth: 1, borderDash: [2, 3], pointRadius: 0, tension: 0.3, fill: '+1', backgroundColor: 'rgba(255,179,0,0.04)' },
-      { label: 'VWAP Lower', data: padded(vwapLower), borderColor: 'rgba(255,179,0,0.25)', borderWidth: 1, borderDash: [2, 3], pointRadius: 0, tension: 0.3, fill: false },
+      { label: 'VWAP Upper', data: padded(vwapUpper), borderColor: 'rgba(206,147,216,0.3)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: '+1', backgroundColor: 'rgba(206,147,216,0.06)' },
+      { label: 'VWAP Lower', data: padded(vwapLower), borderColor: 'rgba(206,147,216,0.3)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: false },
       { label: 'Proj Mid', data: projPadded(projMid), borderColor: 'rgba(0,229,255,0.6)', borderWidth: 2, borderDash: [4, 3], pointRadius: 0, tension: 0.3, fill: false },
       { label: 'Proj High', data: projPadded(projHi), borderColor: 'rgba(0,229,255,0.25)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: '+1', backgroundColor: 'rgba(0,229,255,0.07)' },
       { label: 'Proj Low', data: projPadded(projLo), borderColor: 'rgba(0,229,255,0.25)', borderWidth: 1, pointRadius: 0, tension: 0.3, fill: false },
