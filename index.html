@@ -995,6 +995,7 @@ function buildAll() {
   }
 
   // Extend labels and datasets with nulls for real data, values for projection
+  const projLen = projLabels.length;
   // ── Trend lines (extended into projection zone) ──
   const trendLines = findTrendLines(BARS, lookback);
   trendLines.forEach((tl, i) => {
@@ -1025,7 +1026,6 @@ function buildAll() {
   });
 
   const allLabels = [...labels, ...projLabels];
-  const projLen = projLabels.length;
   const padded = (arr) => [...arr, ...Array(projLen).fill(null)];
   const projPadded = (arr) => [...Array(prices.length - 1).fill(null), prices[prices.length - 1], ...arr]; // connect from last real price
 
