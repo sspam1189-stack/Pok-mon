@@ -376,13 +376,10 @@ async function fetchSPY() {
           volume: q.volume[i]
         });
       }
-      // Trim 15m data to last 3 trading days + this week
+      // Trim 15m data to last 5 trading days
       if (currentInterval === '15m') {
-        const now = new Date();
-        const dayOfWeek = now.getDay();
-        const daysBack = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-        const cutoff = new Date(now);
-        cutoff.setDate(cutoff.getDate() - daysBack - 3);
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 5);
         cutoff.setHours(0,0,0,0);
         return bars.filter(b => b.date >= cutoff);
       }
@@ -1197,10 +1194,19 @@ function updateTimestamp() {
 async function refreshData() {
   try {
     BARS = await fetchSPY();
-    buildAll();
+    document.getElementById('app-loading').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
+    try { buildAll(); } catch (buildErr) {
+      console.error('buildAll crashed:', buildErr);
+      document.getElementById('summary-text').innerHTML = `<span style="color:var(--red)">Chart error: ${buildErr.message}</span>`;
+    }
     updateTimestamp();
   } catch (err) {
-    console.error('Refresh failed:', err.message);
+    console.error('Refresh failed:', err);
+    document.getElementById('app-loading').innerHTML =
+      `<div class="error-msg">Failed to fetch SPY data: ${err.message}<br><br>Try refreshing the page.</div>`;
+    document.getElementById('app-loading').style.display = 'flex';
+    document.getElementById('app-content').style.display = 'none';
   }
 }
 
