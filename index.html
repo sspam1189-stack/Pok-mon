@@ -900,11 +900,10 @@ function buildAll() {
   const incLabel = currentInterval === '15m' ? '15 Min' : currentInterval === '60m' ? '1 Hour' : 'Day';
   document.getElementById('proj-title').textContent = `Next 5 ${incLabel} Increments`;
   // Pick 5 evenly spaced points from projection
-  const cardCount = 5;
-  const cardStep = Math.max(1, Math.floor(projMid.length / cardCount));
+  const cardCount = Math.min(5, projMid.length);
   let projDaysHTML = '';
   for (let c = 0; c < cardCount; c++) {
-    const idx = Math.min(c * cardStep + (cardStep - 1), projMid.length - 1);
+    const idx = c;
     if (idx < 0 || idx >= projMid.length) continue;
     const change = projMid[idx] - curPrice;
     const changePct = (change / curPrice * 100).toFixed(2);
