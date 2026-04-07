@@ -1169,6 +1169,29 @@ function updateTimestamp() {
   document.getElementById('last-update').textContent = 'Updated ' + now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
+// ─── Live quote for current price + open ───────────────────
+async function fetchLiveQuote() {
+  const AV_KEY = 'RIBXT3XYLI69PC0Q';
+  try {
+    const res = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=SPY&apikey=${AV_KEY}`);
+    const json = await res.json();
+    const q = json['Global Quote'];
+    if (!q) return;
+    const price = parseFloat(q['05. price']);
+    const open = parseFloat(q['02. open']);
+    const prevClose = parseFloat(q['08. previous close']);
+    const chgPct = ((price - open) / open * 100).toFixed(2);
+    const dayChgPct = ((price - prevClose) / prevClose * 100).toFixed(2);
+    const isUp = price >= open;
+    document.getElementById('stat-price').textContent = '$' + price.toFixed(2);
+    document.getElementById('stat-date').textContent = q['07. latest trading day'];
+    document.getElementById('stat-open').textContent = '$' + open.toFixed(2);
+    document.getElementById('stat-open-chg').textContent = `${isUp ? '+' : ''}${chgPct}% from open`;
+    document.getElementById('stat-open-chg').style.color = isUp ? 'var(--green)' : 'var(--red)';
+    updateTimestamp();
+  } catch (e) { console.warn('Live quote failed:', e.message); }
+}
+
 async function refreshData() {
   try {
     BARS = await fetchSPY();
@@ -1227,6 +1250,7 @@ document.getElementById('refresh-now').addEventListener('click', () => {
     document.getElementById('app-content').style.display = 'block';
     buildAll();
     updateTimestamp();
+    fetchLiveQuote();
     setRefreshInterval();
   } catch (err) {
     document.getElementById('app-loading').innerHTML =
