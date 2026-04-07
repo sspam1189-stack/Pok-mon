@@ -665,7 +665,7 @@ function buildAll() {
 
   // ── Build S/R zone annotations (±1% bands, not thin lines) ──
   const annotations = {};
-  const zonePct = 0.01; // ±1% zone width
+  const zonePct = 0.003; // ±0.3% zone width (~$2 at $655)
   supBelow.slice(0, 3).forEach((s, i) => {
     const half = s.price * zonePct;
     annotations['sup' + i] = {
